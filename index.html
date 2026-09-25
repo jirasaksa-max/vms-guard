@@ -1,0 +1,1008 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>จุดตรวจรักษาความปลอดภัย (VMS) - รปภ.</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Prompt -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <!-- SweetAlert2 -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <!-- HTML5 QR Code Scanner -->
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <!-- GitHub Pages VMS Config -->
+  <script src="config.js"></script>
+
+  <style>
+    body {
+      font-family: 'Prompt', sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen pb-24">
+
+  <!-- Header จุดตรวจ รปภ. -->
+  <header class="bg-blue-600 text-white shadow-md sticky top-0 z-40">
+    <div class="max-w-xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center space-x-2.5">
+        <span class="text-2xl">🛡️</span>
+        <div>
+          <h1 class="font-bold text-base leading-tight">จุดตรวจรักษาความปลอดภัย</h1>
+          <p class="text-xs text-blue-100">ระบบบันทึกรับ-คืนบัตรผู้มาติดต่อ</p>
+        </div>
+      </div>
+      <div class="text-xs bg-blue-700/80 px-2.5 py-1 rounded-full font-medium">
+        รปภ. ประจำจุด
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="max-w-xl mx-auto p-4">
+
+    <!-- ========================================== -->
+    <!-- TAB 1: ลงทะเบียนเข้า (CHECK-IN)            -->
+    <!-- ========================================== -->
+    <div id="tabCheckIn" class="tab-content space-y-4">
+
+      <!-- Step 1: ถ่ายรูปบัตร ปชช. -->
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
+        <h2 class="font-semibold text-slate-700 flex items-center gap-2 mb-3">
+          <span class="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm font-bold">1</span>
+          ถ่ายรูปบัตรประชาชน
+        </h2>
+
+        <!-- กล่องถ่ายรูป / อัปโหลด -->
+        <div class="flex flex-col items-center justify-center border-2 border-dashed border-slate-300 rounded-xl p-4 bg-slate-50 hover:bg-slate-100 transition cursor-pointer relative"
+             onclick="document.getElementById('idCardCameraInput').click()">
+          <input type="file" id="idCardCameraInput" accept="image/*" capture="environment" class="hidden" onchange="handleIdCardImage(event)">
+          
+          <div id="cardPreviewContainer" class="hidden w-full flex flex-col items-center">
+            <img id="cardPreviewImg" src="" alt="บัตรประชาชน" class="max-h-44 rounded-lg shadow border border-slate-200 object-cover mb-2">
+            <span class="text-xs text-blue-600 font-medium underline">แตะเพื่อถ่ายรูปใหม่</span>
+          </div>
+
+          <div id="cardPlaceholder" class="text-center py-4">
+            <div class="w-16 h-16 mx-auto mb-2 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center text-3xl">
+              📸
+            </div>
+            <p class="font-medium text-slate-700 text-sm">แตะเพื่อถ่ายรูปบัตรประชาชน</p>
+            <p class="text-xs text-slate-400 mt-1">AI จะช่วยอ่านข้อมูลลงฟอร์มอัตโนมัติ</p>
+          </div>
+        </div>
+
+        <!-- AI OCR Loading Indicator -->
+        <div id="ocrLoading" class="hidden mt-3 p-3 bg-blue-50 rounded-xl flex items-center justify-center gap-3 text-blue-700">
+          <svg class="animate-spin h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+          </svg>
+          <span class="text-sm font-medium">AI กำลังอ่านข้อมูลจากบัตร...</span>
+        </div>
+      </div>
+
+      <!-- Step 2: ข้อมูลผู้มาติดต่อ (ทางผ่านข้อมูล) -->
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 space-y-3">
+        <h2 class="font-semibold text-slate-700 flex items-center gap-2">
+          <span class="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm font-bold">2</span>
+          ข้อมูลผู้มาติดต่อ (ตรวจสอบ/แก้ไข)
+        </h2>
+
+        <div class="grid grid-cols-12 gap-2">
+          <div class="col-span-4">
+            <label class="text-xs text-slate-500">คำนำหน้า</label>
+            <input type="text" id="inTitle" placeholder="นาย" class="w-full mt-1 px-3 py-2 bg-slate-50 border rounded-lg text-sm outline-none">
+          </div>
+          <div class="col-span-4">
+            <label class="text-xs text-slate-500">ชื่อ</label>
+            <input type="text" id="inFirstName" placeholder="ชื่อ" class="w-full mt-1 px-3 py-2 bg-slate-50 border rounded-lg text-sm outline-none">
+          </div>
+          <div class="col-span-4">
+            <label class="text-xs text-slate-500">นามสกุล</label>
+            <input type="text" id="inLastName" placeholder="นามสกุล" class="w-full mt-1 px-3 py-2 bg-slate-50 border rounded-lg text-sm outline-none">
+          </div>
+        </div>
+
+        <div>
+          <label class="text-xs text-slate-500">เลขประจำตัวประชาชน (13 หลัก)</label>
+          <input type="text" id="inIdCard" maxlength="13" placeholder="เลข 13 หลัก" class="w-full mt-1 px-3 py-2 bg-slate-50 border rounded-lg text-sm font-mono tracking-wider outline-none">
+        </div>
+
+        <div>
+          <label class="text-xs text-slate-500">ที่อยู่ตามบัตร</label>
+          <input type="text" id="inAddress" placeholder="ที่อยู่ตามบัตรประชาชน" class="w-full mt-1 px-3 py-2 bg-slate-50 border rounded-lg text-sm outline-none">
+        </div>
+
+        <div class="border-t border-slate-100 pt-3">
+          <label class="text-xs font-semibold text-blue-700">มาติดต่อใคร / บ้านเลขที่ / แผนก *</label>
+          <input type="text" id="inContactPerson" placeholder="เช่น บ้านเลขที่ 99/12 (คุณสมศักดิ์)" class="w-full mt-1 px-3 py-2.5 bg-amber-50/60 border border-amber-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="text-xs text-slate-500">ทะเบียนรถ</label>
+            <input type="text" id="inLicensePlate" placeholder="1กข 1234 กทม." class="w-full mt-1 px-3 py-2 bg-slate-50 border rounded-lg text-sm uppercase outline-none">
+          </div>
+          <div>
+            <label class="text-xs text-slate-500">วัตถุประสงค์</label>
+            <select id="inPurpose" class="w-full mt-1 px-3 py-2 bg-slate-50 border rounded-lg text-sm outline-none">
+              <option value="ส่งพัสดุ / อาหาร">ส่งพัสดุ / อาหาร</option>
+              <option value="ติดต่อธุระ">ติดต่อธุระ</option>
+              <option value="ช่างซ่อม / บำรุงรักษา">ช่างซ่อม / บำรุงรักษา</option>
+              <option value="พบเพื่อน / ญาติ">พบเพื่อน / ญาติ</option>
+              <option value="อื่นๆ">อื่นๆ</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3: สแกนบัตร QR Code ผู้มาติดต่อ -->
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 space-y-3">
+        <h2 class="font-semibold text-slate-700 flex items-center gap-2">
+          <span class="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm font-bold">3</span>
+          ผูกบัตร QR Code ผู้มาติดต่อ
+        </h2>
+
+        <div class="flex gap-1.5">
+          <input type="text" id="inPassCode" placeholder="เช่น V-001" class="flex-1 px-3 py-3 bg-blue-50/50 border-2 border-blue-400 rounded-xl text-lg font-bold text-blue-800 text-center tracking-wider outline-none focus:border-blue-600 uppercase font-mono">
+          <button type="button" onclick="openQrScannerModal('inPassCode')" class="px-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl flex items-center justify-center gap-1 font-medium shadow-sm transition active:scale-95 text-xs whitespace-nowrap">
+            <span class="text-base">📷</span>
+            <span>สแกน QR</span>
+          </button>
+          <button type="button" onclick="openQuickPassPickerModal('inPassCode')" class="px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded-xl flex items-center justify-center gap-1 font-medium shadow-sm transition active:scale-95 text-xs whitespace-nowrap" title="เลือกจากหมายเลขบัตร">
+            <span>🔢</span>
+            <span>เลือกบัตร</span>
+          </button>
+        </div>
+        <p class="text-xs text-slate-400 text-center">สแกน QR Code บนบัตรที่เตรียมไว้ หรือแตะปุ่ม "เลือกบัตร"</p>
+      </div>
+
+      <!-- ปุ่มยืนยัน Check-in -->
+      <button type="button" onclick="submitCheckIn()" class="w-full py-4 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold rounded-2xl shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2 text-lg transition">
+        <span>✅</span>
+        <span>ยืนยันการบันทึกเข้า (Check-in)</span>
+      </button>
+
+    </div>
+
+
+    <!-- ========================================== -->
+    <!-- TAB 2: ลงทะเบียนออก (CHECK-OUT)           -->
+    <!-- ========================================== -->
+    <div id="tabCheckOut" class="tab-content hidden space-y-4">
+
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 space-y-3">
+        <h2 class="font-semibold text-slate-700 flex items-center gap-2">
+          <span class="text-xl">🔴</span>
+          สแกนคืนบัตรผู้มาติดต่อ (Check-out)
+        </h2>
+
+        <div class="flex gap-1.5">
+          <input type="text" id="outPassCode" placeholder="เช่น V-001" class="flex-1 px-3 py-3 bg-red-50/50 border-2 border-red-300 rounded-xl text-lg font-bold text-red-800 text-center tracking-wider outline-none focus:border-red-500 uppercase font-mono">
+          <button type="button" onclick="openQrScannerModal('outPassCode', true)" class="px-3 bg-red-600 hover:bg-red-700 text-white rounded-xl flex items-center justify-center gap-1 font-medium shadow-sm transition active:scale-95 text-xs whitespace-nowrap">
+            <span class="text-base">📷</span>
+            <span>สแกน QR</span>
+          </button>
+          <button type="button" onclick="openQuickPassPickerModal('outPassCode', true)" class="px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded-xl flex items-center justify-center gap-1 font-medium shadow-sm transition active:scale-95 text-xs whitespace-nowrap" title="เลือกจากรายการบัตรที่ค้างอยู่">
+            <span>🔢</span>
+            <span>เลือกบัตร</span>
+          </button>
+        </div>
+
+        <button type="button" onclick="searchActiveVisitor()" class="w-full py-2.5 bg-slate-800 hover:bg-black text-white text-sm font-medium rounded-xl transition">
+          🔍 ค้นหารายการบัตรนี้
+        </button>
+      </div>
+
+      <!-- การ์ดแสดงผลขั้นต่ำตอน Check-out (เฉพาะเพื่อการยืนยันคืนบัตร) -->
+      <div id="checkOutDetailsCard" class="hidden bg-white rounded-2xl shadow-md border border-slate-200 overflow-hidden">
+        <div class="bg-red-500 text-white px-4 py-3 flex justify-between items-center">
+          <span class="font-bold text-lg" id="outDisplayPassCode">บัตร V-001</span>
+          <span class="text-xs bg-red-700/60 px-2 py-0.5 rounded-full font-mono" id="outDisplayDuration">0 นาที</span>
+        </div>
+
+        <div class="p-4 space-y-2.5 text-sm">
+          <div class="flex justify-between border-b pb-2">
+            <span class="text-slate-400">จุดที่มาติดต่อ:</span>
+            <span class="font-bold text-blue-700" id="outDisplayContact">-</span>
+          </div>
+          <div class="flex justify-between border-b pb-2">
+            <span class="text-slate-400">ทะเบียนรถ:</span>
+            <span class="font-mono font-bold text-slate-800" id="outDisplayPlate">-</span>
+          </div>
+          <div class="flex justify-between border-b pb-2">
+            <span class="text-slate-400">เวลาที่เข้า:</span>
+            <span class="text-slate-600" id="outDisplayTime">-</span>
+          </div>
+
+          <!-- สถานะลายเซ็นผู้รับการติดต่อ -->
+          <div id="outSignatureSection" class="hidden p-3 rounded-xl border text-xs transition"></div>
+
+          <div>
+            <label class="text-xs text-slate-500">หมายเหตุตอนออก (ถ้ามี)</label>
+            <input type="text" id="outNotes" placeholder="เช่น คืนบัตรเรียบร้อย" class="w-full mt-1 px-3 py-2 bg-slate-50 border rounded-lg text-sm outline-none">
+          </div>
+        </div>
+
+        <input type="hidden" id="outCurrentLogId">
+
+        <div class="p-4 bg-slate-50 border-t flex gap-2">
+          <button type="button" onclick="cancelCheckOutCard()" class="flex-1 py-3 bg-slate-200 text-slate-700 font-medium rounded-xl text-sm">
+            ยกเลิก
+          </button>
+          <button type="button" id="btnSubmitCheckOut" onclick="submitCheckOut()" class="flex-2 py-3 px-6 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl shadow text-sm active:scale-95 transition">
+            🚪 ยืนยันคืนบัตรและออก
+          </button>
+        </div>
+      </div>
+
+    </div>
+
+
+    <!-- ========================================== -->
+    <!-- TAB 3: บัตรที่ยังค้างอยู่ (ACTIVE PASSES)  -->
+    <!-- ========================================== -->
+    <div id="tabActive" class="tab-content hidden space-y-3">
+      <div class="flex justify-between items-center">
+        <div>
+          <h2 class="font-bold text-slate-700 text-sm">บัตรที่ยังไม่ได้คืน (ค้างอยู่ในพื้นที่)</h2>
+          <p class="text-[11px] text-slate-400">แสดงเฉพาะข้อมูลบัตรและจุดติดต่อ</p>
+        </div>
+        <button onclick="loadActivePassesForGuard()" class="text-xs text-blue-600 hover:underline flex items-center gap-1 font-medium">
+          🔄 รีเฟรช
+        </button>
+      </div>
+
+      <div id="activePassesList" class="space-y-2">
+        <div class="text-center py-8 text-slate-400 text-sm">กำลังโหลดข้อมูล...</div>
+      </div>
+    </div>
+
+  </main>
+
+
+  <!-- ========================================== -->
+  <!-- MODAL: สแกน QR CODE (กล้องสด + กล้องถ่ายภาพ)   -->
+  <!-- ========================================== -->
+  <div id="qrScannerModal" class="fixed inset-0 bg-black/80 z-50 hidden flex flex-col items-center justify-center p-4">
+    <div class="bg-white rounded-3xl w-full max-w-sm overflow-hidden flex flex-col shadow-2xl">
+      <div class="p-4 bg-slate-900 text-white flex justify-between items-center">
+        <h3 class="font-bold text-sm flex items-center gap-1.5">
+          <span>📷</span>
+          สแกน QR Code บัตรผู้มาติดต่อ
+        </h3>
+        <button onclick="closeQrScannerModal()" class="text-slate-400 hover:text-white text-xl font-bold">&times;</button>
+      </div>
+
+      <!-- Hidden file input สำหรับเรียกกล้องมือถือแท้ๆ (Native Mobile Camera) สแกนได้ 100% ไม่ติด iframe -->
+      <input type="file" id="qrCameraFileInput" accept="image/*" capture="environment" class="hidden" onchange="handleQrCameraFile(event)">
+
+      <div class="p-3 bg-black flex flex-col items-center justify-center min-h-[250px] relative overflow-hidden">
+        <div id="qrReaderView" class="w-full max-w-[280px]"></div>
+
+        <!-- กล่องแจ้งเตือนเมื่อเบราว์เซอร์หรือ Google iframe บล็อกกล้องวิดีโอสด -->
+        <div id="cameraBlockedNotice" class="hidden text-center p-4 bg-slate-900/95 text-white rounded-2xl border border-slate-700 space-y-3 m-2">
+          <div class="text-3xl">📸</div>
+          <div class="font-bold text-sm text-amber-400">ระบบจำกัดกล้องวิดีโอสดใน iframe</div>
+          <p class="text-xs text-slate-300 leading-relaxed">
+            Google Apps Script ป้องกันการเข้าถึงกล้องวิดีโอสดบนมือถือบางรุ่น<br>
+            <b class="text-emerald-400">แต่สามารถใช้กล้องถ่ายรูปสแกนได้ทันที 100%!</b>
+          </p>
+          <button type="button" onclick="triggerNativeCameraQr()" class="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-sm shadow flex items-center justify-center gap-2 active:scale-95 transition">
+            <span>📷</span>
+            <span>เปิดกล้องมือถือถ่าย QR Code</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="p-4 bg-slate-50 space-y-2">
+        <!-- ปุ่มเปิดกล้องมือถือถ่ายรูป (ทำงานได้ 100% บนมือถือทุกเครื่อง ไม่ติด iframe) -->
+        <button type="button" onclick="triggerNativeCameraQr()" class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-sm flex items-center justify-center gap-2 shadow active:scale-95 transition">
+          <span class="text-lg">📸</span>
+          <span>เปิดกล้องถ่ายภาพ QR (แนะนำบนมือถือ)</span>
+        </button>
+
+        <!-- ปุ่มเลือกหมายเลขบัตรด่วน -->
+        <button type="button" onclick="closeQrScannerModal(); openQuickPassPickerModal(targetQrInputId, autoTriggerSearch);" class="w-full py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold rounded-xl text-xs flex items-center justify-center gap-1.5 transition">
+          <span>🔢</span>
+          <span>เลือกหมายเลขบัตรจากรายการ</span>
+        </button>
+
+        <button type="button" onclick="closeQrScannerModal()" class="w-full py-2 text-slate-400 hover:text-slate-600 text-xs font-medium">
+          ปิดหน้าต่าง
+        </button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ========================================== -->
+  <!-- MODAL: เลือกหมายเลขบัตรด่วน (QUICK PASS PICKER) -->
+  <!-- ========================================== -->
+  <div id="quickPassPickerModal" class="fixed inset-0 bg-black/80 z-50 hidden flex flex-col items-center justify-center p-4">
+    <div class="bg-white rounded-3xl w-full max-w-sm overflow-hidden flex flex-col shadow-2xl max-h-[85vh]">
+      <div class="p-4 bg-slate-900 text-white flex justify-between items-center">
+        <h3 class="font-bold text-sm flex items-center gap-1.5">
+          <span>🔢</span>
+          <span id="quickPickerTitle">เลือกหมายเลขบัตร</span>
+        </h3>
+        <button onclick="closeQuickPassPickerModal()" class="text-slate-400 hover:text-white text-xl font-bold">&times;</button>
+      </div>
+
+      <div class="p-3 border-b bg-slate-50">
+        <input type="text" id="quickPickerSearch" onkeyup="filterQuickPassGrid()" placeholder="ค้นหา เช่น 1, 15, V-001..." class="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-mono outline-none focus:border-blue-500">
+      </div>
+
+      <div id="quickPassGridContainer" class="p-4 overflow-y-auto flex-1 grid grid-cols-4 gap-2 text-center max-h-[50vh]">
+        <div class="col-span-full py-6 text-slate-400 text-xs">กำลังโหลดรายการบัตร...</div>
+      </div>
+
+      <div class="p-3 bg-slate-100 text-center border-t">
+        <button type="button" onclick="closeQuickPassPickerModal()" class="w-full py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold rounded-xl text-xs">
+          ปิดหน้าต่าง
+        </button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ========================================== -->
+  <!-- BOTTOM NAVIGATION BAR (เฉพาะ 3 เมนู รปภ.)  -->
+  <!-- ========================================== -->
+  <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-40 shadow-lg">
+    <div class="max-w-xl mx-auto grid grid-cols-3 text-center py-1">
+      <button onclick="switchTab('tabCheckIn')" id="navCheckIn" class="nav-btn py-2 text-blue-600 font-semibold flex flex-col items-center">
+        <span class="text-xl">🟢</span>
+        <span class="text-xs mt-0.5">ลงทะเบียนเข้า</span>
+      </button>
+
+      <button onclick="switchTab('tabCheckOut')" id="navCheckOut" class="nav-btn py-2 text-slate-400 flex flex-col items-center">
+        <span class="text-xl">🔴</span>
+        <span class="text-xs mt-0.5">คืนบัตร / ออก</span>
+      </button>
+
+      <button onclick="switchTab('tabActive')" id="navActive" class="nav-btn py-2 text-slate-400 flex flex-col items-center">
+        <span class="text-xl">📋</span>
+        <span class="text-xs mt-0.5">บัตรที่ค้างอยู่</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ========================================== -->
+  <!-- JAVASCRIPT LOGIC (GUARD PORTAL)            -->
+  <!-- ========================================== -->
+  <script>
+    let html5QrScanner = null;
+    let targetQrInputId = '';
+    let autoTriggerSearch = false;
+    let compressedCardPhotoBase64 = '';
+
+    // สลับแท็บ
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+      document.getElementById(tabId).classList.remove('hidden');
+
+      document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.classList.remove('text-blue-600', 'text-red-600', 'font-semibold');
+        btn.classList.add('text-slate-400');
+      });
+
+      if (tabId === 'tabCheckIn') {
+        document.getElementById('navCheckIn').className = 'nav-btn py-2 text-blue-600 font-semibold flex flex-col items-center';
+      }
+      if (tabId === 'tabCheckOut') {
+        document.getElementById('navCheckOut').className = 'nav-btn py-2 text-red-600 font-semibold flex flex-col items-center';
+      }
+      if (tabId === 'tabActive') {
+        document.getElementById('navActive').className = 'nav-btn py-2 text-blue-600 font-semibold flex flex-col items-center';
+        loadActivePassesForGuard();
+      }
+    }
+
+    // ย่อขนาดรูปภาพและส่งให้ Gemini AI OCR
+    function handleIdCardImage(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const img = new Image();
+        img.onload = function() {
+          const maxDim = 1280;
+          let w = img.width;
+          let h = img.height;
+          if (w > maxDim || h > maxDim) {
+            if (w > h) {
+              h = Math.round((h * maxDim) / w);
+              w = maxDim;
+            } else {
+              w = Math.round((w * maxDim) / h);
+              h = maxDim;
+            }
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, w, h);
+
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+          compressedCardPhotoBase64 = compressedDataUrl;
+
+          document.getElementById('cardPlaceholder').classList.add('hidden');
+          document.getElementById('cardPreviewContainer').classList.remove('hidden');
+          document.getElementById('cardPreviewImg').src = compressedDataUrl;
+          document.getElementById('ocrLoading').classList.remove('hidden');
+
+          google.script.run
+            .withSuccessHandler(onOcrSuccess)
+            .withFailureHandler(onOcrFail)
+            .extractIdCardWithGemini(compressedDataUrl, 'image/jpeg');
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function onOcrSuccess(res) {
+      document.getElementById('ocrLoading').classList.add('hidden');
+      if (res.success && res.data) {
+        const d = res.data;
+        if (d.title) document.getElementById('inTitle').value = d.title;
+        if (d.first_name) document.getElementById('inFirstName').value = d.first_name;
+        if (d.last_name) document.getElementById('inLastName').value = d.last_name;
+        if (d.id_card_number) document.getElementById('inIdCard').value = d.id_card_number;
+        if (d.address) document.getElementById('inAddress').value = d.address;
+
+        Swal.fire({
+          icon: 'success',
+          title: 'สกัดข้อมูลสำเร็จ',
+          text: `อ่านบัตร: ${d.title} ${d.first_name} ${d.last_name}`,
+          timer: 1800,
+          showConfirmButton: false
+        });
+      } else {
+        Swal.fire('แจ้งเตือน', res.message || 'ไม่สามารถอ่านข้อความจากบัตรได้ กรุณากรอกด้วยตนเอง', 'warning');
+      }
+    }
+
+    function onOcrFail(err) {
+      document.getElementById('ocrLoading').classList.add('hidden');
+      Swal.fire('OCR ผิดพลาด', err.message || err.toString(), 'error');
+    }
+
+    // ==========================================
+    // QR Code Scanner (Dual Mode: Live Camera + Native Mobile Photo)
+    // ==========================================
+    let quickPassPickerTargetId = '';
+    let quickPassPickerAutoSearch = false;
+    let allQuickPassCodes = [];
+
+    function triggerNativeCameraQr() {
+      const input = document.getElementById('qrCameraFileInput');
+      if (input) {
+        input.value = '';
+        input.click();
+      }
+    }
+
+    async function handleQrCameraFile(event) {
+      if (!event.target.files || event.target.files.length === 0) return;
+      const file = event.target.files[0];
+
+      Swal.fire({
+        title: 'กำลังสแกน QR Code...',
+        text: 'ระบบกำลังอ่านภาพถ่ายบัตร',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+      });
+
+      try {
+        if (!html5QrScanner) {
+          html5QrScanner = new Html5Qrcode("qrReaderView");
+        }
+
+        // ถอดรหัส QR จากไฟล์ภาพถ่ายโดยตรง ทำงานในเครื่อง 100% ไม่ต้องอัปโหลด
+        const decodedText = await html5QrScanner.scanFile(file, false);
+        Swal.close();
+        onQrScannedSuccess(decodedText);
+      } catch (err) {
+        Swal.close();
+        Swal.fire({
+          icon: 'warning',
+          title: 'ไม่พบ QR Code ในภาพ',
+          text: 'กรุณาถ่ายภาพบัตรให้เห็นกรอบ QR Code ชัดเจนและสว่าง หรือเลือกหมายเลขบัตรด้วยตนเอง',
+          confirmButtonText: 'ถ่ายใหม่อีกครั้ง',
+          showCancelButton: true,
+          cancelButtonText: 'ปิด'
+        }).then(res => {
+          if (res.isConfirmed) {
+            triggerNativeCameraQr();
+          }
+        });
+      } finally {
+        event.target.value = '';
+      }
+    }
+
+    function openQrScannerModal(inputId, triggerSearchOnScan = false) {
+      targetQrInputId = inputId;
+      autoTriggerSearch = triggerSearchOnScan;
+      document.getElementById('qrScannerModal').classList.remove('hidden');
+      document.getElementById('cameraBlockedNotice').classList.add('hidden');
+      document.getElementById('qrReaderView').classList.remove('hidden');
+
+      if (!html5QrScanner) {
+        html5QrScanner = new Html5Qrcode("qrReaderView");
+      }
+
+      const config = { fps: 10, qrbox: { width: 220, height: 220 } };
+
+      // พยายามเปิดกล้องวิดีโอสดก่อน
+      html5QrScanner.start(
+        { facingMode: "environment" },
+        config,
+        onQrScannedSuccess
+      ).catch(err => {
+        console.warn("Live video blocked by iframe sandbox:", err);
+        // เมื่อเบราว์เซอร์หรือ iframe ไม่อนุญาตกล้องสด จะสลับมาโหมดกล้องถ่ายภาพทันที
+        document.getElementById('qrReaderView').classList.add('hidden');
+        document.getElementById('cameraBlockedNotice').classList.remove('hidden');
+
+        // หากเป็นมือถือ (iOS/Android) ให้เปิดกล้องถ่ายภาพของมือถือขึ้นมาทันทีโดยไม่ต้องรอ
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        if (isMobile) {
+          setTimeout(() => {
+            triggerNativeCameraQr();
+          }, 250);
+        }
+      });
+    }
+
+    function onQrScannedSuccess(decodedText) {
+      const cleanCode = decodedText.trim().toUpperCase();
+      document.getElementById(targetQrInputId).value = cleanCode;
+
+      if (navigator.vibrate) navigator.vibrate(100);
+      closeQrScannerModal();
+
+      if (autoTriggerSearch) {
+        searchActiveVisitor();
+      }
+    }
+
+    function closeQrScannerModal() {
+      document.getElementById('qrScannerModal').classList.add('hidden');
+      if (html5QrScanner && html5QrScanner.isScanning) {
+        html5QrScanner.stop().catch(() => {});
+      }
+    }
+
+    // ==========================================
+    // Quick Pass Picker (เลือกหมายเลขบัตรด่วน)
+    // ==========================================
+    function openQuickPassPickerModal(inputId, triggerSearchOnScan = false) {
+      quickPassPickerTargetId = inputId || targetQrInputId || 'inPassCode';
+      quickPassPickerAutoSearch = triggerSearchOnScan;
+      document.getElementById('quickPickerSearch').value = '';
+      document.getElementById('quickPassPickerModal').classList.remove('hidden');
+
+      const isCheckOut = (quickPassPickerTargetId === 'outPassCode');
+      document.getElementById('quickPickerTitle').innerText = isCheckOut 
+        ? 'เลือกบัตรที่ต้องการคืน (ค้างอยู่ในพื้นที่)' 
+        : 'เลือกหมายเลขบัตรผู้มาติดต่อ';
+
+      const container = document.getElementById('quickPassGridContainer');
+      container.innerHTML = '<div class="col-span-full py-6 text-slate-400 text-xs">กำลังโหลดรายการบัตร...</div>';
+
+      if (isCheckOut) {
+        // ดึงรายการบัตรที่ยังค้างอยู่ในพื้นที่
+        google.script.run
+          .withSuccessHandler(res => {
+            if (res.success && res.data && res.data.length > 0) {
+              allQuickPassCodes = res.data.map(v => ({
+                code: v.pass_code,
+                desc: v.department_or_house || v.contact_person || 'ผู้มาติดต่อ'
+              }));
+              renderQuickPassGrid(allQuickPassCodes);
+            } else {
+              // ไม่มีบัตรค้าง
+              container.innerHTML = `
+                <div class="col-span-full py-8 text-center space-y-2">
+                  <div class="text-2xl">✨</div>
+                  <div class="text-xs text-slate-500">ไม่มีบัตรที่ค้างอยู่ในพื้นที่ขณะนี้</div>
+                </div>
+              `;
+            }
+          })
+          .withFailureHandler(() => {
+            renderDefaultPassButtons();
+          })
+          .getActiveVisitorsListForGuard();
+      } else {
+        // กรณี Check-in แสดงชุดบัตรมาตรฐาน V-001 ถึง V-030
+        renderDefaultPassButtons();
+      }
+    }
+
+    function renderDefaultPassButtons() {
+      allQuickPassCodes = [];
+      for (let i = 1; i <= 30; i++) {
+        const numStr = (i < 10 ? '00' : '0') + i;
+        allQuickPassCodes.push({ code: `V-${numStr}`, desc: '' });
+      }
+      renderQuickPassGrid(allQuickPassCodes);
+    }
+
+    function renderQuickPassGrid(list) {
+      const container = document.getElementById('quickPassGridContainer');
+      container.innerHTML = '';
+
+      if (list.length === 0) {
+        container.innerHTML = '<div class="col-span-full py-6 text-slate-400 text-xs">ไม่พบหมายเลขบัตร</div>';
+        return;
+      }
+
+      const isCheckOut = (quickPassPickerTargetId === 'outPassCode');
+
+      list.forEach(item => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = `p-2.5 rounded-xl border flex flex-col items-center justify-center font-mono font-bold transition active:scale-95 shadow-sm ${
+          isCheckOut 
+            ? 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100' 
+            : 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100'
+        }`;
+        btn.innerHTML = `
+          <span class="text-xs">${item.code}</span>
+          ${item.desc ? `<span class="text-[9px] font-sans font-normal text-slate-500 truncate max-w-full mt-0.5">${item.desc}</span>` : ''}
+        `;
+        btn.onclick = () => selectQuickPass(item.code);
+        container.appendChild(btn);
+      });
+    }
+
+    function filterQuickPassGrid() {
+      const term = (document.getElementById('quickPickerSearch').value || '').trim().toLowerCase();
+      if (!term) {
+        renderQuickPassGrid(allQuickPassCodes);
+        return;
+      }
+      const filtered = allQuickPassCodes.filter(item => 
+        item.code.toLowerCase().includes(term) || (item.desc && item.desc.toLowerCase().includes(term))
+      );
+      renderQuickPassGrid(filtered);
+    }
+
+    function selectQuickPass(code) {
+      document.getElementById(quickPassPickerTargetId).value = code;
+      closeQuickPassPickerModal();
+      if (navigator.vibrate) navigator.vibrate(50);
+
+      if (quickPassPickerAutoSearch) {
+        searchActiveVisitor();
+      }
+    }
+
+    function closeQuickPassPickerModal() {
+      document.getElementById('quickPassPickerModal').classList.add('hidden');
+    }
+
+    // ==========================================
+    // บันทึก Check-in (ส่งข้อมูลแล้วล้างฟอร์มทันที)
+    // ==========================================
+    function submitCheckIn() {
+      const passCode = document.getElementById('inPassCode').value.trim();
+      const contactPerson = document.getElementById('inContactPerson').value.trim();
+
+      if (!passCode) {
+        Swal.fire('กรุณาระบุรหัสบัตร', 'กรุณายิง QR Code หรือพิมพ์รหัสบัตรผู้มาติดต่อ', 'warning');
+        return;
+      }
+
+      if (!contactPerson) {
+        Swal.fire('กรุณาระบุผู้ที่มาติดต่อ', 'โปรดระบุบ้านเลขที่ แผนก หรือชื่อผู้ที่มาติดต่อ', 'warning');
+        return;
+      }
+
+      const payload = {
+        pass_code: passCode,
+        title: document.getElementById('inTitle').value.trim(),
+        first_name: document.getElementById('inFirstName').value.trim(),
+        last_name: document.getElementById('inLastName').value.trim(),
+        id_card_number: document.getElementById('inIdCard').value.trim(),
+        address: document.getElementById('inAddress').value.trim(),
+        contact_person: contactPerson,
+        license_plate: document.getElementById('inLicensePlate').value.trim(),
+        purpose: document.getElementById('inPurpose').value,
+        photo_base64: compressedCardPhotoBase64
+      };
+
+      Swal.fire({
+        title: 'กำลังส่งข้อมูลเข้าสู่ระบบ...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+      });
+
+      google.script.run
+        .withSuccessHandler(res => {
+          if (res.success) {
+            Swal.fire({
+              icon: 'success',
+              title: 'ลงทะเบียนสำเร็จ!',
+              html: `<span class="text-base">มอบบัตร <b class="text-blue-600 text-2xl font-mono">${passCode.toUpperCase()}</b> ให้ผู้มาติดต่อ</span>`,
+              confirmButtonText: 'รับทราบ (ล้างหน้าจอ)'
+            }).then(() => {
+              // ล้างหน้าจอทันที เพื่อไม่ให้เก็บข้อมูลไว้บนหน้าจอ รปภ.
+              resetCheckInForm();
+            });
+          } else {
+            Swal.fire('ไม่สำเร็จ', res.message, 'error');
+          }
+        })
+        .withFailureHandler(err => {
+          Swal.fire('เกิดข้อผิดพลาด', err.message || err.toString(), 'error');
+        })
+        .saveCheckIn(payload);
+    }
+
+    function resetCheckInForm() {
+      document.getElementById('inPassCode').value = '';
+      document.getElementById('inContactPerson').value = '';
+      document.getElementById('inTitle').value = '';
+      document.getElementById('inFirstName').value = '';
+      document.getElementById('inLastName').value = '';
+      document.getElementById('inIdCard').value = '';
+      document.getElementById('inAddress').value = '';
+      document.getElementById('inLicensePlate').value = '';
+      document.getElementById('idCardCameraInput').value = '';
+      document.getElementById('cardPlaceholder').classList.remove('hidden');
+      document.getElementById('cardPreviewContainer').classList.add('hidden');
+      document.getElementById('cardPreviewImg').src = '';
+      compressedCardPhotoBase64 = '';
+    }
+
+    // ==========================================
+    // Check-out (แสดงข้อมูลขั้นต่ำเฉพาะจุดติดต่อ)
+    // ==========================================
+    function searchActiveVisitor() {
+      const passCode = document.getElementById('outPassCode').value.trim();
+      if (!passCode) {
+        Swal.fire('กรุณาระบุรหัสบัตร', 'พิมพ์หรือสแกน QR Code บัตรที่ต้องการคืน', 'warning');
+        return;
+      }
+
+      Swal.fire({
+        title: 'กำลังค้นหา...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+      });
+
+      google.script.run
+        .withSuccessHandler(res => {
+          Swal.close();
+          if (res.success && res.data) {
+            displayCheckOutDetails(res.data);
+          } else {
+            document.getElementById('checkOutDetailsCard').classList.add('hidden');
+            Swal.fire('ไม่พบบัตรที่ค้างอยู่', res.message, 'info');
+          }
+        })
+        .withFailureHandler(err => {
+          Swal.close();
+          Swal.fire('ค้นหาผิดพลาด', err.message || err.toString(), 'error');
+        })
+        .findActiveVisitorByPassCode(passCode);
+    }
+
+    let currentCheckOutVisitorData = null;
+
+    function displayCheckOutDetails(v) {
+      currentCheckOutVisitorData = v;
+      document.getElementById('outCurrentLogId').value = v.id;
+      document.getElementById('outDisplayPassCode').innerText = `บัตร ${v.pass_code}`;
+      document.getElementById('outDisplayContact').innerText = v.department_or_house || v.contact_person || '-';
+      document.getElementById('outDisplayPlate').innerText = v.license_plate || '-';
+
+      const inDate = new Date(v.check_in_at);
+      document.getElementById('outDisplayTime').innerText = inDate.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) + ' น.';
+      
+      const diffMins = Math.max(1, Math.round((new Date() - inDate) / 60000));
+      const hours = Math.floor(diffMins / 60);
+      const mins = diffMins % 60;
+      document.getElementById('outDisplayDuration').innerText = hours > 0 ? `อยู่มาแล้ว ${hours} ชม. ${mins} นาที` : `อยู่มาแล้ว ${mins} นาที`;
+
+      // จัดการการแสดงผลกล่องลายเซ็น
+      const sigSection = document.getElementById('outSignatureSection');
+      const submitBtn = document.getElementById('btnSubmitCheckOut');
+
+      if (v.require_signature) {
+        sigSection.classList.remove('hidden');
+        if (v.signature_status === 'SIGNED') {
+          sigSection.className = 'p-3 rounded-xl border border-emerald-500/40 bg-emerald-50 text-emerald-900 space-y-1';
+          sigSection.innerHTML = `
+            <div class="flex items-center justify-between">
+              <span class="font-bold flex items-center gap-1.5 text-emerald-800">
+                <span>✅</span> <span>ได้รับการเซ็นชื่อรับรองแล้ว</span>
+              </span>
+              <span class="text-[10px] bg-emerald-200 text-emerald-800 font-semibold px-2 py-0.5 rounded-full">APPROVED</span>
+            </div>
+            <div class="text-[11px] text-emerald-700">
+              ผู้รับรอง: <b>${v.signed_by || '-'}</b>
+              ${v.signed_at ? ` (${new Date(v.signed_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.)` : ''}
+            </div>
+            ${v.signature_url ? `
+              <div class="pt-1">
+                <a href="${v.signature_url}" target="_blank" class="inline-flex items-center gap-1 text-[11px] text-blue-600 underline font-medium">
+                  <span>✍️</span> <span>คลิกเปิดดูภาพลายเซ็นใน Google Drive</span>
+                </a>
+              </div>
+            ` : ''}
+          `;
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.className = 'flex-2 py-3 px-6 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl shadow text-sm active:scale-95 transition cursor-pointer';
+          }
+        } else {
+          // ยังไม่ได้เซ็น แต่ระบบเปิดบังคับไว้
+          sigSection.className = 'p-3 rounded-xl border border-amber-400 bg-amber-50 text-amber-950 space-y-2';
+          sigSection.innerHTML = `
+            <div class="flex items-center justify-between">
+              <span class="font-bold flex items-center gap-1.5 text-red-600">
+                <span>⚠️</span> <span>ยังไม่ได้รับการเซ็นรับรอง!</span>
+              </span>
+              <span class="text-[10px] bg-red-100 text-red-700 border border-red-200 font-semibold px-2 py-0.5 rounded-full">SIGNATURE REQUIRED</span>
+            </div>
+            <p class="text-[11px] text-slate-600 leading-relaxed">
+              ผู้รับการติดต่อ (เจ้าของบ้าน/แผนก) ต้องสแกน QR บนบัตรเพื่อเซ็นชื่อรับรองก่อน จึงจะสามารถให้ออกได้
+            </p>
+            <button type="button" onclick="openDirectSigning('${v.pass_code}')" class="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-xs flex items-center justify-center gap-1.5 shadow transition active:scale-95">
+              <span>✍️</span>
+              <span>แตะเพื่อเปิดหน้าเซ็นชื่อให้ผู้รับรองเซ็นตรงนี้</span>
+            </button>
+          `;
+          if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.className = 'flex-2 py-3 px-6 bg-slate-300 text-slate-500 font-bold rounded-xl text-sm cursor-not-allowed';
+          }
+        }
+      } else {
+        sigSection.classList.add('hidden');
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.className = 'flex-2 py-3 px-6 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl shadow text-sm active:scale-95 transition cursor-pointer';
+        }
+      }
+
+      document.getElementById('checkOutDetailsCard').classList.remove('hidden');
+      document.getElementById('checkOutDetailsCard').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function openDirectSigning(passCode) {
+      const currentUrl = window.location.href.split('?')[0];
+      const signUrl = currentUrl + '?page=sign&pass=' + encodeURIComponent(passCode);
+      window.open(signUrl, '_blank');
+    }
+
+    function cancelCheckOutCard() {
+      document.getElementById('checkOutDetailsCard').classList.add('hidden');
+      document.getElementById('outPassCode').value = '';
+      currentCheckOutVisitorData = null;
+    }
+
+    function submitCheckOut() {
+      const logId = document.getElementById('outCurrentLogId').value;
+      const passCode = document.getElementById('outPassCode').value.trim();
+      const notes = document.getElementById('outNotes').value.trim();
+
+      if (!logId || !passCode) return;
+
+      if (currentCheckOutVisitorData && currentCheckOutVisitorData.require_signature && currentCheckOutVisitorData.signature_status !== 'SIGNED') {
+        Swal.fire({
+          icon: 'warning',
+          title: 'ไม่สามารถให้ออกได้',
+          text: 'ผู้รับการติดต่อยังไม่ได้เซ็นชื่อรับรองการเข้าพบ กรุณาให้ผู้รับการติดต่อสแกน QR บนบัตรเพื่อเซ็นชื่อรับรองก่อน',
+          confirmButtonText: 'รับทราบ'
+        });
+        return;
+      }
+
+      Swal.fire({
+        title: 'ยืนยันการคืนบัตร?',
+        text: `รับคืนบัตร ${passCode} และอนุญาตให้ออกจากพื้นที่`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#dc2626',
+        confirmButtonText: 'ยืนยัน คืนบัตร',
+        cancelButtonText: 'ยกเลิก'
+      }).then(res => {
+        if (res.isConfirmed) {
+          Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+          google.script.run
+            .withSuccessHandler(resp => {
+              if (resp.success) {
+                Swal.fire({
+                  icon: 'success',
+                  title: 'เรียบร้อย',
+                  text: resp.message,
+                  timer: 2000,
+                  showConfirmButton: false
+                });
+                cancelCheckOutCard();
+              } else {
+                Swal.fire('ไม่สำเร็จ', resp.message, 'error');
+              }
+            })
+            .withFailureHandler(err => {
+              Swal.fire('เกิดข้อผิดพลาด', err.message || err.toString(), 'error');
+            })
+            .saveCheckOut(logId, passCode, notes);
+        }
+      });
+    }
+
+    // ==========================================
+    // รายการบัตรที่ยังค้างอยู่ (เฉพาะข้อมูลบัตร)
+    // ==========================================
+    function loadActivePassesForGuard() {
+      const container = document.getElementById('activePassesList');
+      container.innerHTML = '<div class="text-center py-6 text-slate-400 text-sm">กำลังโหลดข้อมูล...</div>';
+
+      google.script.run
+        .withSuccessHandler(res => {
+          if (!res.success || !res.data || res.data.length === 0) {
+            container.innerHTML = '<div class="bg-white rounded-xl p-8 text-center text-slate-400 text-sm border">ไม่มีบัตรที่ค้างอยู่ในพื้นที่ขณะนี้</div>';
+            return;
+          }
+
+          let html = '';
+          res.data.forEach(v => {
+            const inDate = new Date(v.check_in_at);
+            const timeStr = inDate.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+            const diffMins = Math.max(1, Math.round((new Date() - inDate) / 60000));
+            const hours = Math.floor(diffMins / 60);
+            const mins = diffMins % 60;
+            const durationStr = hours > 0 ? `${hours} ชม. ${mins} น.` : `${mins} นาที`;
+
+            html += `
+              <div class="bg-white rounded-xl border border-slate-200 p-3 shadow-sm flex items-center justify-between">
+                <div>
+                  <div class="flex items-center gap-2">
+                    <span class="bg-blue-100 text-blue-800 text-xs font-bold px-2 py-0.5 rounded-md font-mono">${v.pass_code}</span>
+                    <span class="font-medium text-slate-700 text-xs">ติดต่อ: <b>${v.department_or_house || v.contact_person || '-'}</b></span>
+                  </div>
+                  <div class="text-[11px] text-slate-500 mt-1">
+                    ${v.license_plate ? `ทะเบียน: <b>${v.license_plate}</b> | ` : ''}
+                    เข้าเมื่อ ${timeStr} น. (<span class="text-emerald-600 font-semibold">${durationStr}</span>)
+                  </div>
+                </div>
+                <button onclick="quickCheckOut('${v.pass_code}')" class="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-lg text-xs font-semibold transition active:scale-95">
+                  ออก
+                </button>
+              </div>
+            `;
+          });
+          container.innerHTML = html;
+        })
+        .withFailureHandler(err => {
+          container.innerHTML = `<div class="text-red-500 text-center py-4 text-sm">โหลดผิดพลาด: ${err.message}</div>`;
+        })
+        .getActiveVisitorsListForGuard();
+    }
+
+    function quickCheckOut(passCode) {
+      switchTab('tabCheckOut');
+      document.getElementById('outPassCode').value = passCode;
+      searchActiveVisitor();
+    }
+  </script>
+</body>
+</html>

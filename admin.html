@@ -1,0 +1,1403 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VMS Admin Control Center - แดชบอร์ดผู้ดูแลระบบ</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Prompt -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <!-- SweetAlert2 -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <!-- QRCode.js Library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <!-- GitHub Pages VMS Config -->
+  <script src="config.js"></script>
+
+  <style>
+    body {
+      font-family: 'Prompt', sans-serif;
+    }
+    /* 16:9 full screen container look */
+    .widescreen-container {
+      max-width: 1720px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    /* Print Styles for Visitor Pass Cards */
+    @media print {
+      body {
+        background-color: white !important;
+        color: black !important;
+      }
+      header, nav, .no-print, button, select, input, .md\:hidden {
+        display: none !important;
+      }
+      .widescreen-container {
+        max-width: 100% !important;
+        padding: 0 !important;
+        margin: 0 !important;
+      }
+      .admin-tab {
+        display: block !important;
+      }
+      #tabOverview, #tabLogs, #tabPasses, #tabSettings {
+        display: none !important;
+      }
+      #tabQRCodes {
+        display: block !important;
+      }
+      .print-area {
+        display: grid !important;
+        grid-template-columns: repeat(3, 1fr) !important;
+        gap: 16px !important;
+        padding: 10px !important;
+      }
+      .visitor-card-print {
+        background: white !important;
+        border: 2px dashed #64748b !important;
+        border-radius: 12px !important;
+        color: black !important;
+        box-shadow: none !important;
+        page-break-inside: avoid !important;
+      }
+      .visitor-card-print * {
+        color: black !important;
+      }
+    }
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col">
+
+  <!-- Top Navbar -->
+  <header class="bg-slate-800 border-b border-slate-700/80 sticky top-0 z-40 shadow-lg no-print">
+    <div class="widescreen-container px-6 py-3.5 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-xl shadow-md shadow-blue-500/20">
+          🛡️
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="font-bold text-lg text-white leading-tight">VMS Control Center</h1>
+            <span class="text-[11px] bg-blue-500/20 text-blue-300 font-semibold px-2 py-0.5 rounded-full border border-blue-500/30">ADMIN DASHBOARD</span>
+          </div>
+          <p class="text-xs text-slate-400">ระบบบริหารจัดการและตรวจสอบข้อมูลผู้มาติดต่อส่วนกลาง</p>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <nav class="hidden md:flex items-center gap-1 bg-slate-900/60 p-1.5 rounded-xl border border-slate-700">
+        <button onclick="switchAdminTab('tabOverview')" id="btnTabOverview" class="admin-nav-btn px-4 py-2 rounded-lg text-xs font-semibold bg-blue-600 text-white shadow transition">
+          📊 ภาพรวม
+        </button>
+        <button onclick="switchAdminTab('tabLogs')" id="btnTabLogs" class="admin-nav-btn px-4 py-2 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition">
+          📋 ข้อมูลผู้มาติดต่อทั้งหมด
+        </button>
+        <button onclick="switchAdminTab('tabPasses')" id="btnTabPasses" class="admin-nav-btn px-4 py-2 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition">
+          🏷️ จัดการบัตรผ่าน
+        </button>
+        <button onclick="switchAdminTab('tabQRCodes')" id="btnTabQRCodes" class="admin-nav-btn px-4 py-2 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition">
+          🔲 QR Code บัตรผู้มาติดต่อ
+        </button>
+        <button onclick="switchAdminTab('tabSettings')" id="btnTabSettings" class="admin-nav-btn px-4 py-2 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition">
+          ⚙️ ตั้งค่าระบบ (Keys)
+        </button>
+      </nav>
+
+      <!-- Right Action & Time -->
+      <div class="flex items-center gap-3">
+        <div class="text-right hidden sm:block">
+          <div id="liveClock" class="text-xs font-mono font-bold text-slate-200">00:00:00</div>
+          <div id="liveDate" class="text-[11px] text-slate-400">วันพฤหัสบดี</div>
+        </div>
+        <a id="linkGuardView" href="#" target="_blank" class="px-3.5 py-2 bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/40 text-emerald-400 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition">
+          <span>📱</span>
+          <span>เปิดหน้าจอ รปภ.</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Mobile Tab Bar (if viewed on smaller screens) -->
+  <div class="md:hidden flex overflow-x-auto bg-slate-800 border-b border-slate-700 p-2 gap-1 no-print">
+    <button onclick="switchAdminTab('tabOverview')" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-600 text-white whitespace-nowrap">📊 ภาพรวม</button>
+    <button onclick="switchAdminTab('tabLogs')" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-300 whitespace-nowrap">📋 ข้อมูลทั้งหมด</button>
+    <button onclick="switchAdminTab('tabPasses')" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-300 whitespace-nowrap">🏷️ จัดการบัตร</button>
+    <button onclick="switchAdminTab('tabQRCodes')" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-300 whitespace-nowrap">🔲 QR Code บัตร</button>
+    <button onclick="switchAdminTab('tabSettings')" class="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-300 whitespace-nowrap">⚙️ ตั้งค่าระบบ</button>
+  </div>
+
+  <!-- Main Content Area (16:9 Widescreen) -->
+  <main class="widescreen-container w-full p-6 flex-1 flex flex-col gap-6">
+
+    <!-- ========================================== -->
+    <!-- TAB 1: OVERVIEW & STATS                   -->
+    <!-- ========================================== -->
+    <div id="tabOverview" class="admin-tab space-y-6">
+      <!-- KPI Stats Grid -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Card 1: Total Today -->
+        <div class="bg-slate-800/90 border border-slate-700/80 rounded-2xl p-5 shadow-lg relative overflow-hidden">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-medium text-slate-400">ผู้มาติดต่อวันนี้ทั้งหมด</span>
+            <span class="p-2 bg-blue-500/10 text-blue-400 rounded-xl text-lg">👥</span>
+          </div>
+          <div class="mt-3 flex items-baseline gap-2">
+            <span id="statTotalToday" class="text-3xl font-extrabold text-white">0</span>
+            <span class="text-xs text-slate-400">คน</span>
+          </div>
+          <div class="mt-2 text-[11px] text-blue-400">นับตั้งแต่ 00:00 น. วันนี้</div>
+        </div>
+
+        <!-- Card 2: Active Inside -->
+        <div class="bg-slate-800/90 border border-slate-700/80 rounded-2xl p-5 shadow-lg relative overflow-hidden">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-medium text-slate-400">กำลังอยู่ในพื้นที่ขณะนี้</span>
+            <span class="p-2 bg-emerald-500/10 text-emerald-400 rounded-xl text-lg animate-pulse">🟢</span>
+          </div>
+          <div class="mt-3 flex items-baseline gap-2">
+            <span id="statActiveNow" class="text-3xl font-extrabold text-emerald-400">0</span>
+            <span class="text-xs text-slate-400">คน</span>
+          </div>
+          <div class="mt-2 text-[11px] text-emerald-500 flex items-center gap-1">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+            <span>ยังไม่ได้ทำรายการคืนบัตร</span>
+          </div>
+        </div>
+
+        <!-- Card 3: Checked Out Today -->
+        <div class="bg-slate-800/90 border border-slate-700/80 rounded-2xl p-5 shadow-lg relative overflow-hidden">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-medium text-slate-400">ออกจากพื้นที่แล้ววันนี้</span>
+            <span class="p-2 bg-purple-500/10 text-purple-400 rounded-xl text-lg">🚪</span>
+          </div>
+          <div class="mt-3 flex items-baseline gap-2">
+            <span id="statCheckedOutToday" class="text-3xl font-extrabold text-purple-300">0</span>
+            <span class="text-xs text-slate-400">คน</span>
+          </div>
+          <div class="mt-2 text-[11px] text-slate-400">คืนบัตรเรียบร้อยแล้ว</div>
+        </div>
+
+        <!-- Card 4: Available Passes -->
+        <div class="bg-slate-800/90 border border-slate-700/80 rounded-2xl p-5 shadow-lg relative overflow-hidden">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-medium text-slate-400">บัตรผู้มาติดต่อที่ว่างอยู่</span>
+            <span class="p-2 bg-amber-500/10 text-amber-400 rounded-xl text-lg">🏷️</span>
+          </div>
+          <div class="mt-3 flex items-baseline gap-2">
+            <span id="statAvailablePasses" class="text-3xl font-extrabold text-amber-300">0</span>
+            <span id="statTotalPasses" class="text-xs text-slate-400">/ 0 ใบ</span>
+          </div>
+          <div class="mt-2 text-[11px] text-amber-400">พร้อมให้ รปภ. จ่ายออก</div>
+        </div>
+      </div>
+
+      <!-- Quick Recent Active Section -->
+      <div class="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-6 shadow-xl space-y-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="font-bold text-base text-white flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
+              ผู้มาติดต่อที่ยังอยู่ในพื้นที่แบบ Realtime
+            </h3>
+            <p class="text-xs text-slate-400 mt-0.5">รายการผู้ที่ยังไม่ได้คืนบัตรผ่านจุดตรวจ</p>
+          </div>
+          <button onclick="loadAdminStatsAndOverview()" class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition">
+            <span>🔄</span> รีเฟรช
+          </button>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-900/60 text-slate-400 uppercase font-semibold border-b border-slate-700">
+              <tr>
+                <th class="py-3 px-4">รหัสบัตร</th>
+                <th class="py-3 px-4">ชื่อ - นามสกุล</th>
+                <th class="py-3 px-4">เลขบัตร ปชช.</th>
+                <th class="py-3 px-4">มาติดต่อ</th>
+                <th class="py-3 px-4">ทะเบียนรถ</th>
+                <th class="py-3 px-4">เวลาเข้า</th>
+                <th class="py-3 px-4">ระยะเวลา</th>
+                <th class="py-3 px-4 text-center">การจัดการ</th>
+              </tr>
+            </thead>
+            <tbody id="overviewActiveTableBody" class="divide-y divide-slate-700/60 text-slate-300">
+              <tr><td colspan="8" class="text-center py-8 text-slate-500">กำลังโหลดข้อมูล...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- ========================================== -->
+    <!-- TAB 2: ALL VISITOR LOGS (FULL DETAILS)    -->
+    <!-- ========================================== -->
+    <div id="tabLogs" class="admin-tab hidden space-y-4">
+      
+      <!-- Filter Bar -->
+      <div class="bg-slate-800/90 border border-slate-700/80 rounded-2xl p-4 shadow-lg flex flex-wrap items-center justify-between gap-3">
+        <div class="flex flex-wrap items-center gap-3 flex-1 min-w-[280px]">
+          <!-- Search input -->
+          <div class="relative flex-1 min-w-[200px]">
+            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 text-sm">🔍</span>
+            <input type="text" id="logSearchQuery" onkeyup="filterLogsTable()" placeholder="ค้นหาชื่อ, เลขบัตร 13 หลัก, ทะเบียนรถ, บ้านเลขที่..." class="w-full pl-9 pr-4 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500">
+          </div>
+
+          <!-- Status Filter -->
+          <select id="logStatusFilter" onchange="filterLogsTable()" class="px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-slate-200 focus:outline-none">
+            <option value="ALL">สถานะทั้งหมด</option>
+            <option value="CHECKED_IN">🟢 กำลังอยู่ในพื้นที่</option>
+            <option value="CHECKED_OUT">🚪 ออกแล้ว</option>
+          </select>
+
+          <!-- Date Filter -->
+          <select id="logDateFilter" onchange="fetchAdminLogs()" class="px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-slate-200 focus:outline-none">
+            <option value="TODAY">วันนี้</option>
+            <option value="LAST_7_DAYS">ย้อนหลัง 7 วัน</option>
+            <option value="THIS_MONTH">เดือนนี้</option>
+            <option value="ALL">ข้อมูลทั้งหมด</option>
+          </select>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button onclick="exportLogsToCSV()" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow transition">
+            <span>📥</span>
+            <span>ส่งออก CSV (Excel)</span>
+          </button>
+          <button onclick="fetchAdminLogs()" class="px-3.5 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition">
+            <span>🔄</span>
+            <span>รีเฟรช</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Logs Table -->
+      <div class="bg-slate-800/90 border border-slate-700/80 rounded-2xl shadow-xl overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-900/80 text-slate-400 uppercase font-semibold border-b border-slate-700">
+              <tr>
+                <th class="py-3 px-3">บัตร</th>
+                <th class="py-3 px-3">สถานะ</th>
+                <th class="py-3 px-3">รูปภาพ</th>
+                <th class="py-3 px-3">ชื่อ - นามสกุล</th>
+                <th class="py-3 px-3">เลขประจำตัวประชาชน</th>
+                <th class="py-3 px-3">มาติดต่อ / แผนก</th>
+                <th class="py-3 px-3">ทะเบียนรถ</th>
+                <th class="py-3 px-3">เวลาเข้า</th>
+                <th class="py-3 px-3">เวลาออก</th>
+                <th class="py-3 px-3">ลายเซ็นรับรอง</th>
+                <th class="py-3 px-3">ที่อยู่ตามบัตร</th>
+                <th class="py-3 px-3 text-center">จัดการ</th>
+              </tr>
+            </thead>
+            <tbody id="logsTableBody" class="divide-y divide-slate-700/60 text-slate-300">
+              <tr><td colspan="12" class="text-center py-12 text-slate-500">กำลังโหลดรายการผู้มาติดต่อ...</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="px-4 py-3 bg-slate-900/50 border-t border-slate-700/80 flex items-center justify-between text-xs text-slate-400">
+          <span id="logsCountLabel">แสดงทั้งหมด 0 รายการ</span>
+          <span class="text-[11px] text-slate-500">* ข้อมูลนี้แสดงเฉพาะในแดชบอร์ด Admin เท่านั้น</span>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- ========================================== -->
+    <!-- TAB 3: PASSES MANAGEMENT                  -->
+    <!-- ========================================== -->
+    <div id="tabPasses" class="admin-tab hidden space-y-6">
+      
+      <!-- Top Action Bar -->
+      <div class="bg-slate-800/90 border border-slate-700/80 rounded-2xl p-5 shadow-lg flex flex-wrap justify-between items-center gap-4">
+        <div>
+          <h3 class="font-bold text-base text-white">จัดการบัตรผู้มาติดต่อ (QR Passes)</h3>
+          <p class="text-xs text-slate-400 mt-0.5">ตรวจสอบสถานะบัตรทั้งหมด หรือปลดล็อคบัตรกรณีผู้มาติดต่อทำบัตรหาย</p>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button onclick="openAddPassModal()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow transition">
+            <span>➕</span>
+            <span>เพิ่มบัตรใหม่ในระบบ</span>
+          </button>
+          <button onclick="fetchAdminPasses()" class="px-3.5 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition">
+            <span>🔄</span>
+            <span>รีเฟรช</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Passes Grid -->
+      <div id="passesGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3">
+        <div class="col-span-full text-center py-12 text-slate-500 text-xs">กำลังโหลดบัตร...</div>
+      </div>
+    </div>
+
+
+    <!-- ========================================== -->
+    <!-- TAB 4: QR CODE VISITOR PASSES GENERATOR    -->
+    <!-- ========================================== -->
+    <div id="tabQRCodes" class="admin-tab hidden space-y-6">
+      
+      <!-- Top Action & Filter Bar (Hidden on Print) -->
+      <div class="bg-slate-800/90 border border-slate-700/80 rounded-2xl p-5 shadow-lg flex flex-wrap justify-between items-center gap-4 no-print">
+        <div>
+          <div class="flex items-center gap-2">
+            <h3 class="font-bold text-base text-white">🔲 จัดทำและพิมพ์ QR Code บัตรผู้มาติดต่อ</h3>
+            <span class="text-[11px] bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded-md font-semibold border border-blue-500/30">VISITOR BADGES</span>
+          </div>
+          <p class="text-xs text-slate-400 mt-1">
+            ดาวน์โหลดไฟล์รูปภาพ QR Code คมชัดสูง คัดลอกลิงก์สำหรับนำไปใช้ต่อ หรือสั่งพิมพ์บัตรคล้องคอได้ทันที
+          </p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2">
+          <!-- Search box -->
+          <input type="text" id="qrSearchInput" onkeyup="filterQRCards()" placeholder="ค้นหารหัสบัตร เช่น V-001..." class="px-3.5 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 outline-none focus:border-blue-500">
+          
+          <!-- Print All Button -->
+          <button onclick="window.print()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow transition active:scale-95">
+            <span>🖨️</span>
+            <span>สั่งพิมพ์บัตรทั้งหมด (A4)</span>
+          </button>
+
+          <!-- Refresh -->
+          <button onclick="loadAdminQRCodes()" class="px-3.5 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition">
+            <span>🔄</span>
+            <span>รีเฟรช</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Quick Custom QR Code Generator Box (Hidden on Print) -->
+      <div class="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-4 shadow no-print flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-2 text-xs text-slate-300">
+          <span class="text-lg">✨</span>
+          <span class="font-semibold">สร้าง QR Code พิเศษทันที:</span>
+          <span class="text-slate-400">(เช่น บัตร VIP-01, STAFF-01 หรือรหัสเฉพาะกิจ)</span>
+        </div>
+        <div class="flex items-center gap-2 flex-1 max-w-md">
+          <input type="text" id="customQrInput" placeholder="พิมพ์รหัส เช่น VIP-001" class="flex-1 px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-xs text-white outline-none uppercase font-mono">
+          <button onclick="generateCustomQrModal()" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold whitespace-nowrap transition active:scale-95">
+            สร้างและดาวน์โหลด
+          </button>
+        </div>
+      </div>
+
+      <!-- Instructions & Tip Box (Hidden on Print) -->
+      <div class="bg-blue-950/20 border border-blue-500/30 rounded-2xl p-4 text-xs text-blue-200 flex items-start gap-3 no-print">
+        <span class="text-xl">💡</span>
+        <div class="space-y-1">
+          <p class="font-semibold text-white">คำแนะนำสำหรับการใช้งานและการพิมพ์:</p>
+          <p class="text-slate-300 leading-relaxed">
+            • <b>กดปุ่ม "📥 ดาวน์โหลดรูปภาพ":</b> จะได้ไฟล์ภาพ PNG คมชัดสูง สำหรับนำไปตกแต่งหรือปริ้นท์สติกเกอร์แปะบนบัตรแข็ง<br>
+            • <b>กดปุ่ม "🔗 ลิงก์รูป QR":</b> จะคัดลอก URL ของรูปภาพ QR Code สามารถนำไปวางใน Google Docs, Word หรือระบบอื่นๆ ได้ทันที<br>
+            • <b>กดปุ่ม "🖨️ สั่งพิมพ์บัตรทั้งหมด":</b> ระบบจะจัดเรียงบัตรลงบนหน้ากระดาษ A4 พร้อมเส้นประสำหรับตัดใส่ซองบัตรคล้องคอมาตรฐานทันที
+          </p>
+        </div>
+      </div>
+
+      <!-- QR Cards Grid Container (Print Area) -->
+      <div id="qrCardsGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 print-area">
+        <div class="col-span-full text-center py-12 text-slate-500 text-xs">กำลังสร้าง QR Code สำหรับบัตรทุกใบ...</div>
+      </div>
+
+    </div>
+
+
+    <!-- ========================================== -->
+    <!-- TAB 5: SYSTEM SETTINGS (EXCLUSIVE TO ADMIN)-->
+    <!-- ========================================== -->
+    <div id="tabSettings" class="admin-tab hidden space-y-6">
+      <div class="max-w-2xl bg-slate-800/90 border border-slate-700/80 rounded-2xl p-6 shadow-xl space-y-5">
+        <div>
+          <h2 class="font-bold text-lg text-white flex items-center gap-2">
+            <span>⚙️</span>
+            การตั้งค่าความปลอดภัยและ API Keys
+          </h2>
+          <p class="text-xs text-slate-400 mt-1 leading-relaxed">
+            หน้านี้เป็นจุดเดียวที่สามารถกำหนดค่าการเชื่อมต่อฐานข้อมูล Supabase และ Google Gemini AI ได้ โดยเจ้าหน้าที่ รปภ. จะไม่สามารถมองเห็นหรือแก้ไขคีย์เหล่านี้ได้
+          </p>
+        </div>
+
+        <div class="space-y-4">
+          <div>
+            <label class="text-xs font-semibold text-slate-300">Supabase Project URL</label>
+            <input type="text" id="adminSupabaseUrl" placeholder="https://xshzgwlgwrsoyvmbdbuk.supabase.co" class="w-full mt-1.5 px-3.5 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:border-blue-500 font-mono">
+            <p class="text-[11px] text-slate-400 mt-1">
+              ⚠️ ต้องเป็น Web URL ลงท้ายด้วย <code class="text-emerald-400">.supabase.co</code> เช่น <span class="text-blue-300 select-all">https://xshzgwlgwrsoyvmbdbuk.supabase.co</span> (ห้ามใส่ API Key ในช่องนี้)
+            </p>
+          </div>
+
+          <div>
+            <label class="text-xs font-semibold text-slate-300">Supabase anon / service_role key</label>
+            <input type="password" id="adminSupabaseKey" placeholder="eyJhbGciOi... หรือ sb_publishable_..." class="w-full mt-1.5 px-3.5 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:border-blue-500 font-mono">
+            <p class="text-[11px] text-slate-400 mt-1">
+              API Key ของ Supabase (ขึ้นต้นด้วย <code class="text-blue-400">eyJ...</code> หรือ <code class="text-blue-400">sb_publishable_...</code>)
+            </p>
+          </div>
+
+          <div>
+            <label class="text-xs font-semibold text-slate-300">Google Gemini API Key</label>
+            <input type="password" id="adminGeminiKey" placeholder="AIzaSy..." class="w-full mt-1.5 px-3.5 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:border-blue-500">
+            <p class="text-[11px] text-blue-400 mt-1">
+              <a href="https://aistudio.google.com/app/apikey" target="_blank" class="underline hover:text-blue-300">คลิกที่นี่เพื่อขอคีย์ฟรีจาก Google AI Studio</a>
+            </p>
+          </div>
+
+          <!-- Active detected model banner -->
+          <div id="detectedModelBanner" class="p-3 bg-slate-900/60 border border-slate-700/60 rounded-xl flex items-center justify-between text-xs">
+            <span class="text-slate-400">โมเดล AI ที่พร้อมใช้งาน:</span>
+            <span id="detectedModelName" class="font-mono text-emerald-400 font-semibold">กำลังตรวจสอบ...</span>
+          </div>
+
+          <!-- Host Signature Requirement Toggle -->
+          <div class="p-4 bg-slate-900/90 border border-slate-700/80 rounded-2xl flex items-center justify-between gap-4">
+            <div class="space-y-1">
+              <div class="flex items-center gap-2">
+                <span class="text-base">✍️</span>
+                <span class="text-xs font-bold text-white">บังคับผู้รับการติดต่อเซ็นชื่อรับรองก่อนให้ออก</span>
+              </div>
+              <p class="text-[11px] text-slate-400 leading-relaxed">
+                หากเปิดใช้งาน ผู้รับการติดต่อ (เจ้าของบ้าน/แผนก) จะต้องสแกน QR บนบัตรเพื่อเซ็นชื่อรับรองในมือถือก่อน หากยังไม่ได้เซ็น รปภ. จะไม่สามารถสแกนคืนบัตรได้
+              </p>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer shrink-0">
+              <input type="checkbox" id="adminRequireSignature" class="sr-only peer">
+              <div class="w-12 h-6.5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5.5 after:w-5.5 after:transition-all peer-checked:bg-emerald-600"></div>
+            </label>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2 pt-2">
+            <button type="button" onclick="adminTestSupabase()" class="py-2.5 bg-slate-700 hover:bg-slate-600 text-slate-200 font-medium rounded-xl text-xs border border-slate-600 transition">
+              ⚡ ทดสอบ Supabase
+            </button>
+            <button type="button" onclick="adminTestGemini()" class="py-2.5 bg-slate-700 hover:bg-slate-600 text-slate-200 font-medium rounded-xl text-xs border border-slate-600 transition">
+              ⚡ ทดสอบ Gemini AI
+            </button>
+          </div>
+
+          <button type="button" onclick="saveAdminConfig()" class="w-full py-3.5 bg-blue-600 hover:bg-blue-500 active:scale-98 text-white font-bold rounded-xl shadow-lg shadow-blue-600/30 text-xs transition">
+            💾 บันทึกการตั้งค่าระบบ
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+
+  <!-- ========================================== -->
+  <!-- MODAL: ขยายดูรูปถ่ายบัตร ปชช.              -->
+  <!-- ========================================== -->
+  <div id="photoModal" class="fixed inset-0 bg-black/80 z-50 hidden flex items-center justify-center p-4" onclick="closePhotoModal()">
+    <div class="bg-slate-800 rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl border border-slate-700 p-4 space-y-3" onclick="event.stopPropagation()">
+      <div class="flex justify-between items-center border-b border-slate-700 pb-2">
+        <h4 class="font-bold text-sm text-white" id="photoModalTitle">รูปถ่ายบัตรประชาชน</h4>
+        <button onclick="closePhotoModal()" class="text-slate-400 hover:text-white text-xl font-bold">&times;</button>
+      </div>
+      <div class="flex justify-center bg-black/50 rounded-2xl p-2 max-h-[70vh] overflow-hidden">
+        <img id="photoModalImg" src="" alt="ภาพบัตร" class="object-contain max-h-[65vh] rounded-lg">
+      </div>
+      <div class="text-right">
+        <button onclick="closePhotoModal()" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-xl text-xs">
+          ปิดหน้าต่าง
+        </button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ========================================== -->
+  <!-- MODAL: เพิ่มบัตรใหม่                        -->
+  <!-- ========================================== -->
+  <div id="addPassModal" class="fixed inset-0 bg-black/80 z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-800 rounded-3xl max-w-sm w-full overflow-hidden shadow-2xl border border-slate-700 p-5 space-y-4">
+      <div class="flex justify-between items-center">
+        <h4 class="font-bold text-sm text-white">เพิ่มชุดบัตรผู้มาติดต่อ</h4>
+        <button onclick="closeAddPassModal()" class="text-slate-400 hover:text-white text-xl font-bold">&times;</button>
+      </div>
+
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="text-slate-400">คำนำหน้ารหัส (Prefix)</label>
+          <input type="text" id="newPassPrefix" value="V-" class="w-full mt-1 px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white">
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="text-slate-400">ตั้งแต่หมายเลข</label>
+            <input type="number" id="newPassStart" value="31" class="w-full mt-1 px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white">
+          </div>
+          <div>
+            <label class="text-slate-400">ถึงหมายเลข</label>
+            <input type="number" id="newPassEnd" value="50" class="w-full mt-1 px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white">
+          </div>
+        </div>
+      </div>
+
+      <div class="flex gap-2 pt-2">
+        <button onclick="closeAddPassModal()" class="flex-1 py-2.5 bg-slate-700 text-slate-300 rounded-xl text-xs">
+          ยกเลิก
+        </button>
+        <button onclick="submitAddNewPasses()" class="flex-1 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-xs">
+          ยืนยันเพิ่มบัตร
+        </button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ========================================== -->
+  <!-- JAVASCRIPT LOGIC                           -->
+  <!-- ========================================== -->
+  <script>
+    let allLogsCache = [];
+
+    window.addEventListener('DOMContentLoaded', () => {
+      // ตั้งค่า URL สำหรับปุ่มเปิดหน้าจอ รปภ.
+      const currentUrl = window.location.href.split('?')[0];
+      document.getElementById('linkGuardView').href = currentUrl;
+
+      startLiveClock();
+      loadAdminConfig();
+      loadAdminStatsAndOverview();
+    });
+
+    function startLiveClock() {
+      const update = () => {
+        const now = new Date();
+        document.getElementById('liveClock').innerText = now.toLocaleTimeString('th-TH');
+        document.getElementById('liveDate').innerText = now.toLocaleDateString('th-TH', {
+          weekday: 'long', day: 'numeric', month: 'short', year: 'numeric'
+        });
+      };
+      update();
+      setInterval(update, 1000);
+    }
+
+    // Switch Navigation Tabs
+    function switchAdminTab(tabId) {
+      document.querySelectorAll('.admin-tab').forEach(el => el.classList.add('hidden'));
+      document.getElementById(tabId).classList.remove('hidden');
+
+      document.querySelectorAll('.admin-nav-btn').forEach(btn => {
+        btn.classList.remove('bg-blue-600', 'text-white', 'shadow');
+        btn.classList.add('text-slate-400');
+      });
+
+      if (tabId === 'tabOverview') {
+        document.getElementById('btnTabOverview').className = 'admin-nav-btn px-4 py-2 rounded-lg text-xs font-semibold bg-blue-600 text-white shadow transition';
+        loadAdminStatsAndOverview();
+      }
+      if (tabId === 'tabLogs') {
+        document.getElementById('btnTabLogs').className = 'admin-nav-btn px-4 py-2 rounded-lg text-xs font-semibold bg-blue-600 text-white shadow transition';
+        fetchAdminLogs();
+      }
+      if (tabId === 'tabPasses') {
+        document.getElementById('btnTabPasses').className = 'admin-nav-btn px-4 py-2 rounded-lg text-xs font-semibold bg-blue-600 text-white shadow transition';
+        fetchAdminPasses();
+      }
+      if (tabId === 'tabQRCodes') {
+        document.getElementById('btnTabQRCodes').className = 'admin-nav-btn px-4 py-2 rounded-lg text-xs font-semibold bg-blue-600 text-white shadow transition';
+        loadAdminQRCodes();
+      }
+      if (tabId === 'tabSettings') {
+        document.getElementById('btnTabSettings').className = 'admin-nav-btn px-4 py-2 rounded-lg text-xs font-semibold bg-blue-600 text-white shadow transition';
+        loadAdminConfig();
+      }
+    }
+
+    // ==========================================
+    // OVERVIEW & STATS
+    // ==========================================
+    function loadAdminStatsAndOverview() {
+      google.script.run
+        .withSuccessHandler(res => {
+          if (!res.success) return;
+          const s = res.stats;
+          document.getElementById('statTotalToday').innerText = s.totalToday || 0;
+          document.getElementById('statActiveNow').innerText = s.activeNow || 0;
+          document.getElementById('statCheckedOutToday').innerText = s.checkedOutToday || 0;
+          document.getElementById('statAvailablePasses').innerText = s.availablePasses || 0;
+          document.getElementById('statTotalPasses').innerText = `/ ${s.totalPasses || 0} ใบ`;
+
+          // Render active table
+          renderOverviewActiveTable(res.activeList || []);
+        })
+        .getAdminDashboardStats();
+    }
+
+    function renderOverviewActiveTable(list) {
+      const tbody = document.getElementById('overviewActiveTableBody');
+      if (!list || list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center py-8 text-slate-500">ไม่มีผู้มาติดต่อที่ยังอยู่ในพื้นที่ขณะนี้</td></tr>';
+        return;
+      }
+
+      let html = '';
+      list.forEach(item => {
+        const inDate = new Date(item.check_in_at);
+        const timeStr = inDate.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+        const diffMins = Math.max(1, Math.round((new Date() - inDate) / 60000));
+        const hours = Math.floor(diffMins / 60);
+        const mins = diffMins % 60;
+        const durationStr = hours > 0 ? `${hours} ชม. ${mins} นาที` : `${mins} นาที`;
+
+        html += `
+          <tr class="hover:bg-slate-700/30 transition">
+            <td class="py-3 px-4 font-mono font-bold text-blue-400">${item.pass_code}</td>
+            <td class="py-3 px-4 font-medium text-white">${item.title || ''} ${item.first_name || ''} ${item.last_name || ''}</td>
+            <td class="py-3 px-4 font-mono text-slate-400">${item.id_card_number || '-'}</td>
+            <td class="py-3 px-4 font-medium text-amber-300">${item.department_or_house || item.contact_person || '-'}</td>
+            <td class="py-3 px-4 font-mono text-slate-300">${item.license_plate || '-'}</td>
+            <td class="py-3 px-4 text-slate-400">${timeStr} น.</td>
+            <td class="py-3 px-4 font-semibold text-emerald-400">${durationStr}</td>
+            <td class="py-3 px-4 text-center">
+              <button onclick="forceCheckout('${item.id}', '${item.pass_code}')" class="px-2.5 py-1 bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/40 rounded-lg text-[11px] font-semibold transition">
+                บังคับออก
+              </button>
+            </td>
+          </tr>
+        `;
+      });
+      tbody.innerHTML = html;
+    }
+
+    // ==========================================
+    // ALL VISITOR LOGS
+    // ==========================================
+    function fetchAdminLogs() {
+      const dateRange = document.getElementById('logDateFilter').value;
+      const tbody = document.getElementById('logsTableBody');
+      tbody.innerHTML = '<tr><td colspan="11" class="text-center py-12 text-slate-500">กำลังโหลดรายการ...</td></tr>';
+
+      google.script.run
+        .withSuccessHandler(res => {
+          if (!res.success) {
+            tbody.innerHTML = `<tr><td colspan="11" class="text-center py-8 text-red-400">เกิดข้อผิดพลาด: ${res.message}</td></tr>`;
+            return;
+          }
+          allLogsCache = res.data || [];
+          filterLogsTable();
+        })
+        .getAdminVisitorLogs(dateRange);
+    }
+
+    function filterLogsTable() {
+      const q = (document.getElementById('logSearchQuery').value || '').trim().toLowerCase();
+      const statusFilter = document.getElementById('logStatusFilter').value;
+
+      const filtered = allLogsCache.filter(item => {
+        const matchesStatus = (statusFilter === 'ALL') || (item.status === statusFilter);
+        if (!matchesStatus) return false;
+
+        if (!q) return true;
+        const name = `${item.title || ''} ${item.first_name || ''} ${item.last_name || ''}`.toLowerCase();
+        const cid = (item.id_card_number || '').toLowerCase();
+        const pass = (item.pass_code || '').toLowerCase();
+        const plate = (item.license_plate || '').toLowerCase();
+        const contact = (item.contact_person || '').toLowerCase();
+        const dept = (item.department_or_house || '').toLowerCase();
+
+        return name.includes(q) || cid.includes(q) || pass.includes(q) || plate.includes(q) || contact.includes(q) || dept.includes(q);
+      });
+
+      renderLogsTable(filtered);
+    }
+
+    function renderLogsTable(list) {
+      const tbody = document.getElementById('logsTableBody');
+      document.getElementById('logsCountLabel').innerText = `แสดงทั้งหมด ${list.length} รายการ`;
+
+      if (list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="11" class="text-center py-12 text-slate-500">ไม่พบรายการที่ตรงกับเงื่อนไขการค้นหา</td></tr>';
+        return;
+      }
+
+      let html = '';
+      list.forEach(item => {
+        const inDate = new Date(item.check_in_at);
+        const inStr = inDate.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) + ' (' + inDate.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' }) + ')';
+        
+        let outStr = '-';
+        if (item.check_out_at) {
+          const outDate = new Date(item.check_out_at);
+          outStr = outDate.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) + ' (' + outDate.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' }) + ')';
+        }
+
+        const isInside = (item.status === 'CHECKED_IN');
+        const statusBadge = isInside 
+          ? '<span class="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full text-[10px] font-bold">อยู่ในพื้นที่</span>'
+          : '<span class="bg-slate-700 text-slate-400 px-2 py-0.5 rounded-full text-[10px] font-medium">ออกแล้ว</span>';
+
+        // รูปบัตร
+        let photoThumb = '<span class="text-slate-600 text-[11px]">-</span>';
+        if (item.photo_base64) {
+          photoThumb = `
+            <img src="${item.photo_base64}" onclick="openPhotoModal('${item.photo_base64}', '${item.first_name || ''} ${item.last_name || ''}')" class="w-8 h-8 rounded-lg object-cover cursor-pointer hover:opacity-80 border border-slate-600 shadow-sm" title="คลิกดูภาพขยาย">
+          `;
+        }
+
+        // ลายเซ็นรับรอง
+        let signBadge = '<span class="text-slate-500 text-[10px]">⏳ รอลายเซ็น</span>';
+        if (item.signature_status === 'SIGNED' && item.signature_url) {
+          signBadge = `
+            <a href="${item.signature_url}" target="_blank" class="inline-flex items-center gap-1 bg-emerald-500/20 text-emerald-300 hover:text-white border border-emerald-500/40 px-2 py-0.5 rounded text-[10px] font-semibold transition" title="ผู้รับรอง: ${item.signed_by || '-'}">
+              <span>✍️</span>
+              <span class="truncate max-w-[80px]">${item.signed_by || 'ดูลายเซ็น'}</span>
+            </a>
+          `;
+        }
+
+        html += `
+          <tr class="hover:bg-slate-700/30 transition text-[11px]">
+            <td class="py-2.5 px-3 font-mono font-bold text-blue-400">${item.pass_code}</td>
+            <td class="py-2.5 px-3">${statusBadge}</td>
+            <td class="py-2.5 px-3">${photoThumb}</td>
+            <td class="py-2.5 px-3 font-semibold text-white whitespace-nowrap">${item.title || ''} ${item.first_name || ''} ${item.last_name || ''}</td>
+            <td class="py-2.5 px-3 font-mono text-slate-300 tracking-wider">${item.id_card_number || '-'}</td>
+            <td class="py-2.5 px-3 font-medium text-amber-300">${item.department_or_house || item.contact_person || '-'}</td>
+            <td class="py-2.5 px-3 font-mono text-slate-200">${item.license_plate || '-'}</td>
+            <td class="py-2.5 px-3 text-slate-400 whitespace-nowrap">${inStr}</td>
+            <td class="py-2.5 px-3 text-slate-400 whitespace-nowrap">${outStr}</td>
+            <td class="py-2.5 px-3 whitespace-nowrap">${signBadge}</td>
+            <td class="py-2.5 px-3 text-slate-400 max-w-[150px] truncate" title="${item.address || ''}">${item.address || '-'}</td>
+            <td class="py-2.5 px-3 text-center">
+              ${isInside ? `
+                <button onclick="forceCheckout('${item.id}', '${item.pass_code}')" class="px-2 py-1 bg-red-600/30 hover:bg-red-600/50 text-red-300 rounded text-[10px] transition">
+                  บังคับออก
+                </button>
+              ` : `
+                <span class="text-slate-600 text-[10px]">เสร็จสิ้น</span>
+              `}
+            </td>
+          </tr>
+        `;
+      });
+      tbody.innerHTML = html;
+    }
+
+    // Modal ภาพบัตร
+    function openPhotoModal(imgSrc, title) {
+      document.getElementById('photoModalImg').src = imgSrc;
+      document.getElementById('photoModalTitle').innerText = 'รูปถ่ายบัตร: ' + title;
+      document.getElementById('photoModal').classList.remove('hidden');
+    }
+    function closePhotoModal() {
+      document.getElementById('photoModal').classList.add('hidden');
+    }
+
+    // ส่งออก CSV
+    function exportLogsToCSV() {
+      if (!allLogsCache || allLogsCache.length === 0) {
+        Swal.fire('ไม่มีข้อมูล', 'ไม่มีข้อมูลสำหรับส่งออก', 'info');
+        return;
+      }
+
+      let csv = "\uFEFF"; // UTF-8 BOM
+      csv += "รหัสบัตร,สถานะ,คำนำหน้า,ชื่อ,นามสกุล,เลขประจำตัวประชาชน,มาติดต่อ,บ้านเลขที่/แผนก,ทะเบียนรถ,วัตถุประสงค์,เวลาเข้า,เวลาออก,ที่อยู่ตามบัตร,หมายเหตุเข้า,หมายเหตุออก\n";
+
+      allLogsCache.forEach(i => {
+        const row = [
+          `"${i.pass_code || ''}"`,
+          `"${i.status || ''}"`,
+          `"${i.title || ''}"`,
+          `"${i.first_name || ''}"`,
+          `"${i.last_name || ''}"`,
+          `"${i.id_card_number || ''}"`,
+          `"${i.contact_person || ''}"`,
+          `"${i.department_or_house || ''}"`,
+          `"${i.license_plate || ''}"`,
+          `"${i.purpose || ''}"`,
+          `"${i.check_in_at || ''}"`,
+          `"${i.check_out_at || ''}"`,
+          `"${(i.address || '').replace(/"/g, '""')}"`,
+          `"${(i.guard_in_notes || '').replace(/"/g, '""')}"`,
+          `"${(i.guard_out_notes || '').replace(/"/g, '""')}"`
+        ];
+        csv += row.join(",") + "\n";
+      });
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      link.setAttribute("download", `visitor_logs_${new Date().toISOString().slice(0, 10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    // ==========================================
+    // PASSES MANAGEMENT
+    // ==========================================
+    function fetchAdminPasses() {
+      const container = document.getElementById('passesGrid');
+      container.innerHTML = '<div class="col-span-full text-center py-12 text-slate-500 text-xs">กำลังโหลดบัตร...</div>';
+
+      google.script.run
+        .withSuccessHandler(res => {
+          if (!res.success) {
+            container.innerHTML = `<div class="col-span-full text-center text-red-400 py-6">เกิดข้อผิดพลาด: ${res.message}</div>`;
+            return;
+          }
+
+          const passes = res.data || [];
+          if (passes.length === 0) {
+            container.innerHTML = '<div class="col-span-full text-center text-slate-500 py-6">ยังไม่มีบัตรในระบบ</div>';
+            return;
+          }
+
+          let html = '';
+          passes.forEach(p => {
+            const isAvail = (p.status === 'AVAILABLE');
+            html += `
+              <div class="bg-slate-800 border ${isAvail ? 'border-emerald-500/30 bg-emerald-950/10' : 'border-amber-500/40 bg-amber-950/20'} rounded-2xl p-3.5 flex flex-col justify-between shadow-sm relative">
+                <div class="flex items-center justify-between">
+                  <span class="text-sm font-black font-mono ${isAvail ? 'text-emerald-400' : 'text-amber-400'}">${p.pass_code}</span>
+                  <span class="w-2.5 h-2.5 rounded-full ${isAvail ? 'bg-emerald-400' : 'bg-amber-400 animate-pulse'}"></span>
+                </div>
+                
+                <div class="my-2">
+                  <span class="text-[10px] font-semibold px-2 py-0.5 rounded-md ${isAvail ? 'bg-emerald-500/20 text-emerald-300' : 'bg-amber-500/20 text-amber-300'}">
+                    ${isAvail ? 'พร้อมใช้งาน' : 'กำลังใช้งาน'}
+                  </span>
+                </div>
+
+                ${!isAvail ? `
+                  <button onclick="forceResetPass('${p.pass_code}')" class="w-full mt-2 py-1.5 bg-red-600/30 hover:bg-red-600/50 text-red-300 rounded-lg text-[10px] font-semibold border border-red-500/40 transition">
+                    ปลดล็อคให้ว่าง
+                  </button>
+                ` : `
+                  <div class="text-[10px] text-slate-500 text-center py-1">บัตรพร้อมจ่าย</div>
+                `}
+              </div>
+            `;
+          });
+          container.innerHTML = html;
+        })
+        .getAdminPassesList();
+    }
+
+    function forceResetPass(passCode) {
+      Swal.fire({
+        title: `ปลดล็อคบัตร ${passCode}?`,
+        text: 'ระบบจะเปลี่ยนสถานะบัตรนี้ให้กลับมาว่าง (AVAILABLE) ทันที',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'ยืนยันปลดล็อค',
+        cancelButtonText: 'ยกเลิก'
+      }).then(res => {
+        if (res.isConfirmed) {
+          google.script.run
+            .withSuccessHandler(resp => {
+              Swal.fire(resp.success ? 'สำเร็จ' : 'เกิดข้อผิดพลาด', resp.message, resp.success ? 'success' : 'error');
+              fetchAdminPasses();
+              loadAdminStatsAndOverview();
+            })
+            .adminForceResetPass(passCode);
+        }
+      });
+    }
+
+    function forceCheckout(logId, passCode) {
+      Swal.fire({
+        title: `ยืนยันบังคับเช็คเอาท์บัตร ${passCode}?`,
+        text: 'จะบันทึกเวลาออกและเปลี่ยนสถานะบัตรให้กลับมาว่าง',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'ยืนยัน',
+        cancelButtonText: 'ยกเลิก'
+      }).then(res => {
+        if (res.isConfirmed) {
+          google.script.run
+            .withSuccessHandler(resp => {
+              Swal.fire(resp.success ? 'สำเร็จ' : 'เกิดข้อผิดพลาด', resp.message, resp.success ? 'success' : 'error');
+              loadAdminStatsAndOverview();
+              if (!document.getElementById('tabLogs').classList.contains('hidden')) fetchAdminLogs();
+            })
+            .adminForceCheckout(logId, passCode);
+        }
+      });
+    }
+
+    // Modal เพิ่มบัตร
+    function openAddPassModal() {
+      document.getElementById('addPassModal').classList.remove('hidden');
+    }
+    function closeAddPassModal() {
+      document.getElementById('addPassModal').classList.add('hidden');
+    }
+    function submitAddNewPasses() {
+      const prefix = document.getElementById('newPassPrefix').value.trim() || 'V-';
+      const start = parseInt(document.getElementById('newPassStart').value);
+      const end = parseInt(document.getElementById('newPassEnd').value);
+
+      if (isNaN(start) || isNaN(end) || start > end) {
+        Swal.fire('ข้อมูลไม่ถูกต้อง', 'กรุณาระบุช่วงหมายเลขให้ถูกต้อง', 'warning');
+        return;
+      }
+
+      closeAddPassModal();
+      Swal.fire({ title: 'กำลังสร้างบัตร...', didOpen: () => Swal.showLoading() });
+
+      google.script.run
+        .withSuccessHandler(res => {
+          Swal.fire(res.success ? 'สำเร็จ' : 'ผิดพลาด', res.message, res.success ? 'success' : 'error');
+          fetchAdminPasses();
+        })
+        .adminAddNewPasses(prefix, start, end);
+    }
+
+    // ==========================================
+    // SETTINGS (EXCLUSIVE ADMIN)
+    // ==========================================
+    function loadAdminConfig() {
+      google.script.run
+        .withSuccessHandler(res => {
+          if (res.supabaseUrl) document.getElementById('adminSupabaseUrl').value = res.supabaseUrl;
+          if (res.hasSupabaseKey) document.getElementById('adminSupabaseKey').placeholder = '******** (ตั้งค่าแล้ว)';
+          if (res.hasGeminiKey) document.getElementById('adminGeminiKey').placeholder = '******** (ตั้งค่าแล้ว)';
+          
+          document.getElementById('adminRequireSignature').checked = !!res.requireHostSignature;
+
+          if (res.activeModel) {
+            document.getElementById('detectedModelName').innerText = res.activeModel;
+          } else {
+            document.getElementById('detectedModelName').innerText = 'ตรวจหาอัตโนมัติเมื่อทดสอบ';
+          }
+        })
+        .getSystemConfigForAdmin();
+    }
+
+    function saveAdminConfig() {
+      const url = document.getElementById('adminSupabaseUrl').value.trim();
+      const key = document.getElementById('adminSupabaseKey').value.trim();
+      const gemini = document.getElementById('adminGeminiKey').value.trim();
+      const reqSign = document.getElementById('adminRequireSignature').checked;
+
+      Swal.fire({ title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading() });
+
+      google.script.run
+        .withSuccessHandler(res => {
+          Swal.fire(res.success ? 'สำเร็จ' : 'บันทึกไม่สำเร็จ', res.message, res.success ? 'success' : 'error');
+          loadAdminConfig();
+        })
+        .saveSystemConfig({
+          supabaseUrl: url,
+          supabaseKey: key,
+          geminiKey: gemini,
+          requireHostSignature: reqSign
+        });
+    }
+
+    function adminTestSupabase() {
+      Swal.fire({ title: 'กำลังทดสอบเชื่อมต่อ Supabase...', didOpen: () => Swal.showLoading() });
+      google.script.run
+        .withSuccessHandler(res => {
+          Swal.fire(res.success ? 'สำเร็จ' : 'ผิดพลาด', res.message, res.success ? 'success' : 'error');
+        })
+        .testSupabaseConnection();
+    }
+
+    function adminTestGemini() {
+      Swal.fire({ title: 'กำลังทดสอบ Gemini AI...', didOpen: () => Swal.showLoading() });
+      google.script.run
+        .withSuccessHandler(res => {
+          Swal.fire(res.success ? 'Gemini พร้อมใช้งาน' : 'ตรวจสอบคีย์ไม่ผ่าน', res.message, res.success ? 'success' : 'error');
+          loadAdminConfig();
+        })
+        .testGeminiConnection();
+    }
+
+    // ==========================================
+    // TAB 4: QR CODE VISITOR PASSES LOGIC
+    // ==========================================
+    let allQRCodesCache = [];
+
+    function loadAdminQRCodes() {
+      const grid = document.getElementById('qrCardsGrid');
+      grid.innerHTML = '<div class="col-span-full text-center py-12 text-slate-400 text-xs flex items-center justify-center gap-2"><span class="animate-spin text-lg">⏳</span> กำลังโหลดและสร้าง QR Code บัตรผู้มาติดต่อ...</div>';
+
+      google.script.run
+        .withSuccessHandler(res => {
+          if (!res.success) {
+            grid.innerHTML = `<div class="col-span-full text-center text-red-400 py-8">เกิดข้อผิดพลาด: ${res.message}</div>`;
+            return;
+          }
+
+          let list = res.data || [];
+          // Natural sort passes e.g. V-001, V-002...
+          list.sort((a, b) => (a.pass_code || '').localeCompare(b.pass_code || '', undefined, { numeric: true, sensitivity: 'base' }));
+          allQRCodesCache = list;
+
+          if (allQRCodesCache.length === 0) {
+            grid.innerHTML = `
+              <div class="col-span-full text-center py-12 bg-slate-800/40 rounded-2xl border border-slate-700/60 p-8 space-y-3">
+                <div class="text-3xl">📭</div>
+                <div class="text-sm font-semibold text-slate-300">ยังไม่มีบัตรในระบบ</div>
+                <p class="text-xs text-slate-400 max-w-sm mx-auto">กรุณาไปที่แท็บ "จัดการบัตรผ่าน" เพื่อสร้างชุดบัตร V-001 ถึง V-030 เข้าสู่ระบบก่อน</p>
+                <button onclick="switchAdminTab('tabPasses')" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-semibold">
+                  ไปยังหน้าจัดการบัตร
+                </button>
+              </div>
+            `;
+            return;
+          }
+
+          renderQRCards(allQRCodesCache);
+        })
+        .getAdminPassesList();
+    }
+
+    function renderQRCards(passes) {
+      const grid = document.getElementById('qrCardsGrid');
+      grid.innerHTML = '';
+
+      if (passes.length === 0) {
+        grid.innerHTML = '<div class="col-span-full text-center py-12 text-slate-500 text-xs">ไม่พบบัตรที่ตรงกับคำค้นหา</div>';
+        return;
+      }
+
+      passes.forEach(p => {
+        const isAvail = (p.status === 'AVAILABLE');
+        const card = document.createElement('div');
+        card.className = 'visitor-card-print bg-slate-800 border border-slate-700/80 rounded-2xl p-4 shadow-lg flex flex-col items-center justify-between text-center relative hover:border-blue-500/50 transition group';
+        card.setAttribute('data-code', p.pass_code);
+
+        card.innerHTML = `
+          <!-- Card Header -->
+          <div class="w-full flex items-center justify-between border-b border-slate-700/60 pb-2 mb-3">
+            <span class="text-[11px] font-bold tracking-wider text-blue-400 uppercase">VISITOR PASS</span>
+            <span class="text-[10px] font-mono px-2 py-0.5 rounded ${isAvail ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'}">
+              ${isAvail ? '🟢 ว่าง' : '🟠 ใช้งาน'}
+            </span>
+          </div>
+
+          <!-- QR Box (High-contrast white for crisp scanning) -->
+          <div class="bg-white p-3 rounded-xl shadow-inner my-1 flex items-center justify-center min-w-[140px] min-h-[140px]" id="qr-box-${p.pass_code}">
+          </div>
+
+          <!-- Code Display -->
+          <div class="my-3">
+            <div class="text-[11px] text-slate-400">รหัสบัตรประจำตัวผู้ติดต่อ</div>
+            <div class="text-xl font-black font-mono tracking-widest text-white select-all mt-0.5">${p.pass_code}</div>
+          </div>
+
+          <!-- Action Buttons (Hidden on Print) -->
+          <div class="w-full pt-3 border-t border-slate-700/60 flex flex-col gap-1.5 no-print">
+            <div class="grid grid-cols-2 gap-1.5">
+              <!-- Download Image -->
+              <button type="button" onclick="downloadQrCard('${p.pass_code}')" class="px-2 py-1.5 bg-blue-600 hover:bg-blue-500 active:scale-95 text-white rounded-lg text-[11px] font-semibold flex items-center justify-center gap-1 transition shadow" title="ดาวน์โหลดภาพบัตรขนาดคมชัดสูง">
+                <span>📥 โหลดรูป</span>
+              </button>
+
+              <!-- Copy Image Link -->
+              <button type="button" onclick="copyQrImageUrl('${p.pass_code}')" class="px-2 py-1.5 bg-slate-700 hover:bg-slate-600 active:scale-95 text-slate-200 rounded-lg text-[11px] font-semibold flex items-center justify-center gap-1 transition border border-slate-600" title="คัดลอกลิงก์ Direct URL ของรูป QR Code">
+                <span>🔗 ลิงก์รูป</span>
+              </button>
+            </div>
+
+            <!-- Copy Code -->
+            <button type="button" onclick="copyPassCode('${p.pass_code}')" class="w-full py-1 text-[11px] text-slate-400 hover:text-white bg-slate-900/60 hover:bg-slate-900 rounded-lg border border-slate-700/50 transition flex items-center justify-center gap-1">
+              <span>📋 คัดลอกรหัส</span>
+              <span class="font-mono text-blue-300 font-bold">(${p.pass_code})</span>
+            </button>
+          </div>
+        `;
+
+        grid.appendChild(card);
+      });
+
+      // Generate QR codes for all passes using QRCodejs
+      setTimeout(() => {
+        passes.forEach(p => {
+          const box = document.getElementById(`qr-box-${p.pass_code}`);
+          if (box) {
+            box.innerHTML = '';
+            new QRCode(box, {
+              text: p.pass_code,
+              width: 130,
+              height: 130,
+              colorDark: "#000000",
+              colorLight: "#ffffff",
+              correctLevel: QRCode.CorrectLevel.H
+            });
+          }
+        });
+      }, 50);
+    }
+
+    function filterQRCards() {
+      const term = (document.getElementById('qrSearchInput').value || '').trim().toLowerCase();
+      if (!term) {
+        renderQRCards(allQRCodesCache);
+        return;
+      }
+      const filtered = allQRCodesCache.filter(p => (p.pass_code || '').toLowerCase().includes(term));
+      renderQRCards(filtered);
+    }
+
+    // Helper: Draw High-Resolution Visitor Badge Canvas (600x820px)
+    function createBadgeCanvas(code, sourceCanvasOrImg) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 600;
+      canvas.height = 820;
+      const ctx = canvas.getContext('2d');
+
+      // Card Background (White)
+      ctx.fillStyle = '#ffffff';
+      if (ctx.roundRect) {
+        ctx.beginPath();
+        ctx.roundRect(0, 0, 600, 820, 24);
+        ctx.fill();
+      } else {
+        ctx.fillRect(0, 0, 600, 820);
+      }
+
+      // Outer Card Border
+      ctx.lineWidth = 6;
+      ctx.strokeStyle = '#0f172a';
+      ctx.stroke();
+
+      // Top Header Banner (Dark Navy)
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(0, 0, 600, 160);
+
+      // Title & Subtitle
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#38bdf8';
+      ctx.font = 'bold 36px "Prompt", sans-serif';
+      ctx.fillText('VISITOR PASS', 300, 70);
+
+      ctx.fillStyle = '#cbd5e1';
+      ctx.font = '500 20px "Prompt", sans-serif';
+      ctx.fillText('บัตรผ่านสำหรับผู้มาติดต่อ', 300, 115);
+
+      // Accent Line
+      ctx.fillStyle = '#2563eb';
+      ctx.fillRect(50, 155, 500, 5);
+
+      // QR Code Box (Light Gray Outer)
+      ctx.fillStyle = '#f8fafc';
+      ctx.fillRect(125, 205, 350, 350);
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#e2e8f0';
+      ctx.strokeRect(125, 205, 350, 350);
+
+      // Draw QR Code in center (300x300)
+      if (sourceCanvasOrImg) {
+        ctx.drawImage(sourceCanvasOrImg, 150, 230, 300, 300);
+      }
+
+      // Pass Code Box (Light Blue/Gray)
+      ctx.fillStyle = '#f1f5f9';
+      ctx.fillRect(80, 585, 440, 95);
+      ctx.strokeStyle = '#94a3b8';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(80, 585, 440, 95);
+
+      // Pass Code Text
+      ctx.fillStyle = '#0f172a';
+      ctx.font = 'bold 48px monospace';
+      ctx.fillText(code, 300, 650);
+
+      // Footer Instructions
+      ctx.fillStyle = '#475569';
+      ctx.font = '500 18px "Prompt", sans-serif';
+      ctx.fillText('โปรดติดบัตรนี้ไว้ตลอดเวลา และคืนบัตรเมื่อเสร็จสิ้นภารกิจ', 300, 735);
+
+      ctx.font = '13px monospace';
+      ctx.fillStyle = '#94a3b8';
+      ctx.fillText('VISITOR MANAGEMENT SYSTEM • SECURITY PASS', 300, 770);
+
+      return canvas;
+    }
+
+    // ดาวน์โหลดรูปภาพบัตรเป็นไฟล์ PNG
+    function downloadQrCard(code) {
+      const box = document.getElementById(`qr-box-${code}`);
+      let source = null;
+      if (box) {
+        source = box.querySelector('canvas') || box.querySelector('img');
+      }
+
+      const executeDownload = (qrElement) => {
+        const badgeCanvas = createBadgeCanvas(code, qrElement);
+        const a = document.createElement('a');
+        a.download = `Visitor_Badge_${code}.png`;
+        a.href = badgeCanvas.toDataURL('image/png');
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+
+        Swal.fire({
+          toast: true,
+          position: 'top-end',
+          icon: 'success',
+          title: `ดาวน์โหลดบัตร ${code} สำเร็จ!`,
+          timer: 2500,
+          showConfirmButton: false
+        });
+      };
+
+      if (source) {
+        executeDownload(source);
+      } else {
+        // Fallback: create temporary QR
+        const tempDiv = document.createElement('div');
+        tempDiv.style.display = 'none';
+        document.body.appendChild(tempDiv);
+        new QRCode(tempDiv, {
+          text: code,
+          width: 300,
+          height: 300,
+          correctLevel: QRCode.CorrectLevel.H
+        });
+        setTimeout(() => {
+          const tempSource = tempDiv.querySelector('canvas') || tempDiv.querySelector('img');
+          executeDownload(tempSource);
+          document.body.removeChild(tempDiv);
+        }, 100);
+      }
+    }
+
+    // คัดลอก Direct URL ของรูปภาพ QR Code
+    function copyQrImageUrl(code) {
+      const url = `https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(code)}`;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(() => {
+          Swal.fire({
+            icon: 'success',
+            title: 'คัดลอกลิงก์รูปภาพ QR แล้ว!',
+            html: `
+              <div class="text-left text-xs bg-slate-900 p-3 rounded-xl border border-slate-700 space-y-2 mt-2">
+                <div class="text-slate-400">Direct Image URL:</div>
+                <div class="font-mono text-blue-300 break-all select-all">${url}</div>
+              </div>
+              <p class="text-xs text-slate-400 mt-2">สามารถนำลิงก์นี้ไปวางในเบราว์เซอร์, Google Docs, Word หรือระบบอื่นได้ทันที</p>
+            `,
+            confirmButtonText: 'ตกลง'
+          });
+        }).catch(() => {
+          promptCopyFallback(url);
+        });
+      } else {
+        promptCopyFallback(url);
+      }
+    }
+
+    // คัดลอกรหัสบัตร
+    function copyPassCode(code) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(code).then(() => {
+          Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'success',
+            title: `คัดลอกรหัส ${code} แล้ว`,
+            timer: 2000,
+            showConfirmButton: false
+          });
+        }).catch(() => {
+          prompt('คัดลอกรหัสบัตร:', code);
+        });
+      } else {
+        prompt('คัดลอกรหัสบัตร:', code);
+      }
+    }
+
+    function promptCopyFallback(text) {
+      prompt('กรุณากด Ctrl+C เพื่อคัดลอกลิงก์:', text);
+    }
+
+    // สร้าง QR Code พิเศษทันที (Custom QR Modal)
+    function generateCustomQrModal() {
+      const input = document.getElementById('customQrInput');
+      let code = (input.value || '').trim().toUpperCase();
+
+      if (!code) {
+        Swal.fire({
+          title: 'สร้าง QR Code พิเศษ',
+          text: 'ระบุรหัสบัตรที่ต้องการสร้าง เช่น VIP-001 หรือ CONTRACTOR-01',
+          input: 'text',
+          inputPlaceholder: 'พิมพ์รหัสบัตร...',
+          showCancelButton: true,
+          confirmButtonText: 'สร้าง QR Code',
+          cancelButtonText: 'ยกเลิก'
+        }).then(res => {
+          if (res.isConfirmed && res.value) {
+            showCustomQrPopup(res.value.trim().toUpperCase());
+          }
+        });
+        return;
+      }
+
+      showCustomQrPopup(code);
+    }
+
+    function showCustomQrPopup(code) {
+      const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(code)}`;
+
+      Swal.fire({
+        title: `QR Code: ${code}`,
+        html: `
+          <div class="flex flex-col items-center justify-center space-y-4 my-2">
+            <div id="customQrPopupContainer" class="bg-white p-4 rounded-2xl shadow-inner border flex items-center justify-center min-w-[200px] min-h-[200px]">
+              <!-- QR will be generated -->
+            </div>
+            <div class="text-sm font-mono font-bold text-white bg-slate-900 px-4 py-1.5 rounded-lg border border-slate-700">
+              ${code}
+            </div>
+            <div class="text-xs text-slate-400 break-all max-w-sm">
+              ${qrImageUrl}
+            </div>
+          </div>
+        `,
+        didOpen: () => {
+          const container = document.getElementById('customQrPopupContainer');
+          if (container) {
+            container.innerHTML = '';
+            new QRCode(container, {
+              text: code,
+              width: 180,
+              height: 180,
+              colorDark: "#000000",
+              colorLight: "#ffffff",
+              correctLevel: QRCode.CorrectLevel.H
+            });
+          }
+        },
+        showCancelButton: true,
+        showDenyButton: true,
+        confirmButtonText: '📥 ดาวน์โหลดรูปบัตร',
+        denyButtonText: '🔗 คัดลอกลิงก์รูป',
+        cancelButtonText: 'ปิด'
+      }).then(res => {
+        if (res.isConfirmed) {
+          // Download
+          const container = document.getElementById('customQrPopupContainer');
+          const source = container ? (container.querySelector('canvas') || container.querySelector('img')) : null;
+          const badgeCanvas = createBadgeCanvas(code, source);
+          const a = document.createElement('a');
+          a.download = `Visitor_Badge_${code}.png`;
+          a.href = badgeCanvas.toDataURL('image/png');
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        } else if (res.isDenied) {
+          // Copy URL
+          copyQrImageUrl(code);
+        }
+      });
+    }
+  </script>
+</body>
+</html>
